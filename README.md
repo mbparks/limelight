@@ -15,7 +15,7 @@ The name comes from limelight, the intense stage light that once lit a performer
 1. Open `limelight.html` in a Chromium-based browser (Chrome, Edge, Brave).
 2. Add a screen, one or more cameras, and any images. Drag and resize overlays with the Move tool.
 3. In the Audio panel, click Enable to turn on your microphone (grant permission the first time), pick a device, set gain, and watch the level meter. Toggle System audio to capture computer sound too.
-4. Mark up the frame with the pen, highlighter, arrow, box, circle, triangle, and eraser. Shapes take a stroke color plus an optional fill color and fill opacity.
+4. Mark up the frame with the pen, highlighter, arrow, box, circle, triangle, text, and eraser. Shapes take a stroke color plus an optional fill color and fill opacity. For text, type in the Text panel, pick the Text tool, and click the canvas to place it; adjust font, size, bold/italic/underline/strikethrough, color, and opacity, and resize it later by dragging a corner handle.
 4b. Drop a scalable sticker from the Stickers row: thumbs up, thumbs down, yellow star, red X, smiley face, green check, purple exclamation, or blue question. Click to place at a default size or drag to size it; stickers select, move, and resize like any other mark.
 5. Switch to the Move tool to select any mark: drag it to reposition, drag a corner handle to resize, and change its stroke, fill, or opacity from the same controls. Delete or Backspace removes the selected mark; Escape deselects. Selection handles never appear in the recording.
 6. Press RECORD. Press Stop to drop a take into the list with a preview and a Download button.
@@ -60,6 +60,10 @@ Getting your keys:
 - No PWA layer yet.
 - Recordings are held in memory, so a very long take uses a lot of RAM.
 - The microphone stays live once enabled, so the level meter, gain, and mute keep working between and during takes. Switching the mic device reopens it. The meter shows raw input (pre-gain); mute and gain affect what gets recorded and streamed.
+
+## Moving between computers
+
+Use Export and Import in the top bar to carry your whole layout to another machine. Export writes a single JSON file containing every annotation (shapes, stickers, text), your image overlays (embedded in the file), and your tool settings. Import loads it back and scales the positions to the current stage size. Live cameras are not saved, since they are hardware attached to a specific machine.
 
 ## License
 
