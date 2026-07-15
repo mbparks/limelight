@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- LIMELIGHT :: limelight.html :: v0.9.0 -->
+<!-- LIMELIGHT :: limelight.html :: v0.9.1 -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -290,7 +290,7 @@
       <h1>LIMELIGHT</h1>
       <span class="fi-tag">FI-100</span>
     </div>
-    <span class="ver" id="verTag">v0.9.0</span>
+    <span class="ver" id="verTag">v0.9.1</span>
     <div class="spacer"></div>
     <button class="linkbtn" id="btnExport">EXPORT</button>
     <button class="linkbtn" id="btnImport">IMPORT</button>
@@ -368,6 +368,26 @@
       </div>
     </div>
 
+    <!-- audio -->
+    <div class="group audioctl">
+      <h2>Audio</h2>
+      <div class="row">
+        <select class="ctl" id="micSelect" aria-label="Microphone"><option value="">No microphone</option></select>
+        <button class="ctl" id="btnMic">Enable</button>
+      </div>
+      <div class="row">
+        <button class="ctl" id="btnMute" disabled>Mute</button>
+        <label class="chk"><input type="checkbox" id="sysAudio"> System audio</label>
+      </div>
+      <div class="row">
+        <span class="hint">Gain</span>
+        <input type="range" id="micGain" min="0" max="200" value="100" disabled aria-label="Microphone gain">
+        <span class="hint" id="gainVal">100%</span>
+      </div>
+      <div class="meter" id="meterWrap"><div class="meter-mask" id="meterMask"></div><div class="meter-peak" id="meterPeak"></div></div>
+      <div class="meter-scale"><span>-60</span><span>-40</span><span>-20</span><span>0 dB</span></div>
+    </div>
+
     <!-- text -->
     <div class="group textctl">
       <h2>Text</h2>
@@ -397,26 +417,6 @@
         <span class="swlabel">Color</span>
         <div class="swatches" id="textSwatches"></div>
       </div>
-    </div>
-
-    <!-- audio -->
-    <div class="group audioctl">
-      <h2>Audio</h2>
-      <div class="row">
-        <select class="ctl" id="micSelect" aria-label="Microphone"><option value="">No microphone</option></select>
-        <button class="ctl" id="btnMic">Enable</button>
-      </div>
-      <div class="row">
-        <button class="ctl" id="btnMute" disabled>Mute</button>
-        <label class="chk"><input type="checkbox" id="sysAudio"> System audio</label>
-      </div>
-      <div class="row">
-        <span class="hint">Gain</span>
-        <input type="range" id="micGain" min="0" max="200" value="100" disabled aria-label="Microphone gain">
-        <span class="hint" id="gainVal">100%</span>
-      </div>
-      <div class="meter" id="meterWrap"><div class="meter-mask" id="meterMask"></div><div class="meter-peak" id="meterPeak"></div></div>
-      <div class="meter-scale"><span>-60</span><span>-40</span><span>-20</span><span>0 dB</span></div>
     </div>
 
     <!-- transport -->
@@ -460,7 +460,7 @@
 
 <!-- About dialog -->
 <dialog id="aboutDlg">
-  <div class="dhead"><h3>LIMELIGHT</h3><span class="ver">FI-100 &middot; v0.9.0</span><div class="spacer"></div><button class="linkbtn" id="aboutClose">CLOSE</button></div>
+  <div class="dhead"><h3>LIMELIGHT</h3><span class="ver">FI-100 &middot; v0.9.1</span><div class="spacer"></div><button class="linkbtn" id="aboutClose">CLOSE</button></div>
   <div class="dbody">
     <p><b>LIMELIGHT</b> is a from-disk screen recorder. It composites a screen share, camera overlays, image overlays, and freehand annotation into a single video, mixes in the microphone and system audio you choose, and writes a <code>.webm</code> you download. Limelight was the intense stage light that lit a performer for the whole house, so the name fits a tool for putting your screen in front of the world.</p>
     <p>Everything runs locally in the browser. No frames, audio, or recordings are uploaded anywhere. Files stay on this machine until you download and move them.</p>
@@ -470,7 +470,7 @@
     <p><label class="chk"><input type="checkbox" id="dbgToggle"> Debug logging to console</label></p>
     <p><b>Streaming to YouTube and Twitch</b> runs through <b>SEMAPHORE</b>, a small companion relay (<code>semaphore.py</code>) you run on the same machine. Those platforms ingest over RTMP, which a page at <code>file://</code> cannot speak, so the relay does the RTMP push with ffmpeg. LIMELIGHT sends the composited feed to the relay over <code>ws://localhost</code>. Your stream keys live only in the relay's local config, never in this page, so nothing secret is stored in the file. Recording still works with no relay and no network at all.</p>
     <p><b>Scene export/import</b> (top bar) saves every annotation (shapes, stickers, text), your image overlays (embedded in the file), and your tool settings to one JSON file you can carry to another computer. Live cameras are not saved, since they are hardware on this machine.</p>
-    <p class="hint">Known limitations in v0.9.0: Chromium-based browsers recommended (screen and camera capture from <code>file://</code> rely on the secure-context treatment Chromium gives local files). Output is WebM (Safari support is limited). Streaming needs SEMAPHORE plus ffmpeg installed; the relay transcodes to H.264/AAC, which adds a few seconds of latency. Single monitor/window per session. No PWA layer yet. Recordings are held in memory, so a very long take uses a lot of RAM.</p>
+    <p class="hint">Known limitations in v0.9.1: Chromium-based browsers recommended (screen and camera capture from <code>file://</code> rely on the secure-context treatment Chromium gives local files). Output is WebM (Safari support is limited). Streaming needs SEMAPHORE plus ffmpeg installed; the relay transcodes to H.264/AAC, which adds a few seconds of latency. Single monitor/window per session. No PWA layer yet. Recordings are held in memory, so a very long take uses a lot of RAM.</p>
   </div>
 </dialog>
 
@@ -487,7 +487,7 @@
 "use strict";
 (function(){
   // ---- version ----
-  var VERSION = "0.9.0";
+  var VERSION = "0.9.1";
 
   // ---- debug logging behind an in-app toggle ----
   var DEBUG = false;
