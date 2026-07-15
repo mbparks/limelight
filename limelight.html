@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- LIMELIGHT :: limelight.html :: v0.6.0 -->
+<!-- LIMELIGHT :: limelight.html :: v0.8.0 -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -160,6 +160,11 @@
   .tool.sel svg{stroke:var(--rack)}
   .swatches{display:flex;gap:6px;flex-wrap:wrap}
   .swlabel{font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-faint);min-width:44px}
+  .stickers{display:flex;gap:6px;flex-wrap:wrap}
+  .stk{width:36px;height:36px;padding:0;display:flex;align-items:center;justify-content:center;background:var(--panel-2);border:1px solid var(--edge-hi);border-radius:6px;cursor:pointer}
+  .stk canvas{width:26px;height:26px;display:block}
+  .stk:hover{border-color:var(--phos-dim)}
+  .stk.sel{border-color:var(--phos);box-shadow:0 0 0 1px var(--phos)}
   .sw{width:26px;height:26px;border-radius:5px;border:2px solid transparent;cursor:pointer}
   .sw.sel{border-color:#fff;box-shadow:0 0 0 1px #000}
   .sw.none{background:var(--panel-2);position:relative;overflow:hidden}
@@ -279,7 +284,7 @@
       <h1>LIMELIGHT</h1>
       <span class="fi-tag">FI-100</span>
     </div>
-    <span class="ver" id="verTag">v0.6.0</span>
+    <span class="ver" id="verTag">v0.8.0</span>
     <div class="spacer"></div>
     <button class="linkbtn" id="btnTest">SELF-TEST</button>
     <button class="linkbtn" id="btnAbout">ABOUT</button>
@@ -322,7 +327,7 @@
       <h2>Annotate</h2>
       <div class="row">
         <div class="tools" id="tools">
-          <div class="tool sel" data-tool="move" title="Move / resize cameras and images" aria-label="Move"><svg viewBox="0 0 24 24"><path d="M12 3v18M3 12h18M12 3l-3 3M12 3l3 3M12 21l-3-3M12 21l3-3M3 12l3-3M3 12l3 3M21 12l-3-3M21 12l-3 3"/></svg></div>
+          <div class="tool sel" data-tool="move" title="Select, move, resize (marks, cameras, images)" aria-label="Select and move"><svg viewBox="0 0 24 24"><path d="M12 3v18M3 12h18M12 3l-3 3M12 3l3 3M12 21l-3-3M12 21l3-3M3 12l3-3M3 12l3 3M21 12l-3-3M21 12l-3 3"/></svg></div>
           <div class="tool" data-tool="pen" title="Pen" aria-label="Pen"><svg viewBox="0 0 24 24"><path d="M4 20l4-1L20 7l-3-3L5 16l-1 4z"/></svg></div>
           <div class="tool" data-tool="marker" title="Highlighter" aria-label="Highlighter"><svg viewBox="0 0 24 24"><path d="M5 19h14M6 15l7-9 4 3-7 9H6v-3z"/></svg></div>
           <div class="tool" data-tool="arrow" title="Arrow" aria-label="Arrow"><svg viewBox="0 0 24 24"><path d="M5 19L19 5M19 5h-7M19 5v7"/></svg></div>
@@ -331,6 +336,10 @@
           <div class="tool" data-tool="triangle" title="Triangle" aria-label="Triangle"><svg viewBox="0 0 24 24"><path d="M12 5 L19 19 L5 19 Z"/></svg></div>
           <div class="tool" data-tool="erase" title="Erase a mark" aria-label="Erase"><svg viewBox="0 0 24 24"><path d="M7 21h10M5 15l6-9 8 5-5 8H8l-3-4z"/></svg></div>
         </div>
+      </div>
+      <div class="row">
+        <span class="swlabel">Stickers</span>
+        <div class="stickers" id="stickers"></div>
       </div>
       <div class="row">
         <span class="swlabel">Stroke</span>
@@ -410,7 +419,7 @@
 
 <!-- About dialog -->
 <dialog id="aboutDlg">
-  <div class="dhead"><h3>LIMELIGHT</h3><span class="ver">FI-100 &middot; v0.6.0</span><div class="spacer"></div><button class="linkbtn" id="aboutClose">CLOSE</button></div>
+  <div class="dhead"><h3>LIMELIGHT</h3><span class="ver">FI-100 &middot; v0.8.0</span><div class="spacer"></div><button class="linkbtn" id="aboutClose">CLOSE</button></div>
   <div class="dbody">
     <p><b>LIMELIGHT</b> is a from-disk screen recorder. It composites a screen share, camera overlays, image overlays, and freehand annotation into a single video, mixes in the microphone and system audio you choose, and writes a <code>.webm</code> you download. Limelight was the intense stage light that lit a performer for the whole house, so the name fits a tool for putting your screen in front of the world.</p>
     <p>Everything runs locally in the browser. No frames, audio, or recordings are uploaded anywhere. Files stay on this machine until you download and move them.</p>
@@ -419,7 +428,7 @@
     <p><b>Feedback:</b> report issues at <a href="https://greenshoegarage.com" target="_blank" rel="noopener">greenshoegarage.com</a>.</p>
     <p><label class="chk"><input type="checkbox" id="dbgToggle"> Debug logging to console</label></p>
     <p><b>Streaming to YouTube and Twitch</b> runs through <b>SEMAPHORE</b>, a small companion relay (<code>semaphore.py</code>) you run on the same machine. Those platforms ingest over RTMP, which a page at <code>file://</code> cannot speak, so the relay does the RTMP push with ffmpeg. LIMELIGHT sends the composited feed to the relay over <code>ws://localhost</code>. Your stream keys live only in the relay's local config, never in this page, so nothing secret is stored in the file. Recording still works with no relay and no network at all.</p>
-    <p class="hint">Known limitations in v0.6.0: Chromium-based browsers recommended (screen and camera capture from <code>file://</code> rely on the secure-context treatment Chromium gives local files). Output is WebM (Safari support is limited). Streaming needs SEMAPHORE plus ffmpeg installed; the relay transcodes to H.264/AAC, which adds a few seconds of latency. Single monitor/window per session. No PWA layer yet. Recordings are held in memory, so a very long take uses a lot of RAM.</p>
+    <p class="hint">Known limitations in v0.8.0: Chromium-based browsers recommended (screen and camera capture from <code>file://</code> rely on the secure-context treatment Chromium gives local files). Output is WebM (Safari support is limited). Streaming needs SEMAPHORE plus ffmpeg installed; the relay transcodes to H.264/AAC, which adds a few seconds of latency. Single monitor/window per session. No PWA layer yet. Recordings are held in memory, so a very long take uses a lot of RAM.</p>
   </div>
 </dialog>
 
@@ -436,7 +445,7 @@
 "use strict";
 (function(){
   // ---- version ----
-  var VERSION = "0.6.0";
+  var VERSION = "0.8.0";
 
   // ---- debug logging behind an in-app toggle ----
   var DEBUG = false;
@@ -460,6 +469,7 @@
   var color = "#ffd24a";
   var fillColor = null;             // null = no fill (outline only)
   var fillA = 0.35;                 // fill opacity 0..1
+  var stickerId = "thumbsup";       // selected sticker for the sticker tool
   var lineW = 5;
   var rafId = null;
   var recorder = null, chunks = [], recording = false, paused = false;
@@ -476,6 +486,8 @@
   // interaction (move mode)
   var drag = null;                  // { ov, mode:'move'|'resize', dx, dy }
   var erasing = false;              // true while dragging the eraser
+  var selected = null;              // currently selected annotation (Move tool)
+  var annDrag = null;               // { mode:'move'|'resize', ... } while dragging a mark
 
   var COLORS = ["#ffd24a","#e5484d","#57c7be","#7db4ff","#8ce07a","#ffffff","#12161d"];
 
@@ -502,16 +514,19 @@
         if(!o.el || !o.el.complete || !o.el.naturalWidth) continue;
         drawContainImg(o.el, o.x, o.y, o.w, o.h);
       }
-      ctx.lineWidth = 2;
-      ctx.strokeStyle = o.kind==="img" ? "rgba(226,163,78,.9)" : "rgba(87,199,190,.9)";
-      ctx.strokeRect(o.x+1, o.y+1, o.w-2, o.h-2);
-      if(tool==="move"){
-        ctx.fillStyle = o.kind==="img" ? "rgba(226,163,78,.9)" : "rgba(87,199,190,.9)";
-        ctx.fillRect(o.x+o.w-14, o.y+o.h-14, 12, 12);
+      if(chromeVisible()){
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = o.kind==="img" ? "rgba(226,163,78,.9)" : "rgba(87,199,190,.9)";
+        ctx.strokeRect(o.x+1, o.y+1, o.w-2, o.h-2);
+        if(tool==="move"){
+          ctx.fillStyle = o.kind==="img" ? "rgba(226,163,78,.9)" : "rgba(87,199,190,.9)";
+          ctx.fillRect(o.x+o.w-14, o.y+o.h-14, 12, 12);
+        }
       }
     }
     for(var s=0;s<strokes.length;s++) drawStroke(strokes[s]);
     if(current) drawStroke(current);
+    if(tool==="move" && chromeVisible()) drawSelectionChrome();
     rafId = requestAnimationFrame(loop);
   }
 
@@ -557,8 +572,44 @@
       ctx.lineTo(s.x2-head*Math.cos(a-0.4), s.y2-head*Math.sin(a-0.4));
       ctx.lineTo(s.x2-head*Math.cos(a+0.4), s.y2-head*Math.sin(a+0.4));
       ctx.closePath(); ctx.fill();
+    } else if(s.type==="sticker"){
+      var sz=Math.min(s.w2,s.h2);
+      paintSticker(ctx, s.sticker, s.x+(s.w2-sz)/2, s.y+(s.h2-sz)/2, sz);
     }
     ctx.restore();
+  }
+
+  // ---- sticker icons (hand-built vector, drawn in a 100x100 space) ----
+  function rr(c,x,y,w,h,r){ c.beginPath(); c.moveTo(x+r,y); c.arcTo(x+w,y,x+w,y+h,r); c.arcTo(x+w,y+h,x,y+h,r); c.arcTo(x,y+h,x,y,r); c.arcTo(x,y,x+w,y,r); c.closePath(); }
+  function starPath(c,cx,cy,rO,rI,pts,rot){ c.beginPath(); for(var i=0;i<pts*2;i++){ var r=(i%2===0)?rO:rI, a=rot+i*Math.PI/pts, x=cx+r*Math.cos(a), y=cy+r*Math.sin(a); if(i===0)c.moveTo(x,y); else c.lineTo(x,y); } c.closePath(); }
+  function textGlyph(c,ch){ c.textAlign="center"; c.textBaseline="middle"; c.font="bold 88px system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif"; c.fillText(ch,50,56); }
+  function thumb(c,color,down){
+    c.save();
+    if(down){ c.translate(0,100); c.scale(1,-1); }
+    c.fillStyle=color;
+    rr(c,38,42,48,48,10); c.fill();     // folded fingers
+    rr(c,42,8,24,42,12); c.fill();      // raised thumb
+    rr(c,12,60,30,30,7); c.fill();      // wrist/cuff
+    c.strokeStyle="rgba(0,0,0,.18)"; c.lineWidth=3;
+    c.beginPath(); c.moveTo(44,58); c.lineTo(84,58); c.moveTo(44,72); c.lineTo(84,72); c.stroke();
+    c.restore();
+  }
+  function paintSticker(c,id,ox,oy,size){
+    c.save(); c.translate(ox,oy); c.scale(size/100,size/100);
+    c.lineJoin="round"; c.lineCap="round";
+    if(id==="star"){ c.fillStyle="#f4c430"; starPath(c,50,52,46,19,5,-Math.PI/2); c.fill(); }
+    else if(id==="redx"){ c.strokeStyle="#e5484d"; c.lineWidth=17; c.beginPath(); c.moveTo(26,26); c.lineTo(74,74); c.moveTo(74,26); c.lineTo(26,74); c.stroke(); }
+    else if(id==="check"){ c.strokeStyle="#3fae5a"; c.lineWidth=16; c.beginPath(); c.moveTo(20,54); c.lineTo(42,77); c.lineTo(82,25); c.stroke(); }
+    else if(id==="smiley"){
+      c.fillStyle="#f7c948"; c.beginPath(); c.arc(50,50,44,0,Math.PI*2); c.fill();
+      c.fillStyle="#3a2f10"; c.beginPath(); c.arc(37,43,6,0,Math.PI*2); c.fill(); c.beginPath(); c.arc(63,43,6,0,Math.PI*2); c.fill();
+      c.strokeStyle="#3a2f10"; c.lineWidth=6; c.beginPath(); c.arc(50,52,22,Math.PI*0.15,Math.PI*0.85); c.stroke();
+    }
+    else if(id==="exclaim"){ c.fillStyle="#8b5cf6"; textGlyph(c,"!"); }
+    else if(id==="question"){ c.fillStyle="#3b82f6"; textGlyph(c,"?"); }
+    else if(id==="thumbsup"){ thumb(c,"#46b562",false); }
+    else if(id==="thumbsdown"){ thumb(c,"#e5544d",true); }
+    c.restore();
   }
 
   function startLoop(){ if(!rafId) loop(); refreshEmpty(); }
@@ -720,17 +771,102 @@
   }
   function inResize(o,pt){ return pt.x>=o.x+o.w-16 && pt.y>=o.y+o.h-16; }
 
+  // ---- annotation selection + editing (Move tool) ----
+  var HANDLE=9; // corner handle size in canvas px
+  function isShape(s){ return s.type==="box"||s.type==="circle"||s.type==="triangle"; }
+  function isRectGeom(s){ return isShape(s)||s.type==="sticker"; }
+  function chromeVisible(){ return !(recording || streaming); }
+  function bboxOf(s){
+    if(isRectGeom(s)) return {x:s.x,y:s.y,w:s.w2,h:s.h2};
+    if(s.type==="arrow"){ var x=Math.min(s.x1,s.x2),y=Math.min(s.y1,s.y2); return {x:x,y:y,w:Math.abs(s.x2-s.x1),h:Math.abs(s.y2-s.y1)}; }
+    var minx=1e9,miny=1e9,maxx=-1e9,maxy=-1e9;
+    for(var i=0;i<s.pts.length;i++){ var p=s.pts[i]; if(p.x<minx)minx=p.x; if(p.y<miny)miny=p.y; if(p.x>maxx)maxx=p.x; if(p.y>maxy)maxy=p.y; }
+    return {x:minx,y:miny,w:maxx-minx,h:maxy-miny};
+  }
+  function cornersOf(b){ return [[b.x,b.y],[b.x+b.w,b.y],[b.x+b.w,b.y+b.h],[b.x,b.y+b.h]]; }
+  function handleAt(s,pt){
+    var c=cornersOf(bboxOf(s));
+    for(var i=0;i<4;i++){ if(Math.abs(pt.x-c[i][0])<=HANDLE+3 && Math.abs(pt.y-c[i][1])<=HANDLE+3) return i; }
+    return -1;
+  }
+  function hitAnnotation(pt){
+    for(var i=strokes.length-1;i>=0;i--){ if(strokeHit(strokes[i],pt)) return strokes[i]; }
+    return null;
+  }
+  function moveStroke(s,dx,dy){
+    if(isRectGeom(s)){ s.x+=dx; s.y+=dy; }
+    else if(s.type==="arrow"){ s.x1+=dx; s.x2+=dx; s.y1+=dy; s.y2+=dy; }
+    else { for(var i=0;i<s.pts.length;i++){ s.pts[i].x+=dx; s.pts[i].y+=dy; } }
+  }
+  function snapshotGeom(s){
+    if(isRectGeom(s)) return {x:s.x,y:s.y,w2:s.w2,h2:s.h2};
+    if(s.type==="arrow") return {x1:s.x1,y1:s.y1,x2:s.x2,y2:s.y2};
+    return {pts:s.pts.map(function(p){return {x:p.x,y:p.y};})};
+  }
+  function rectFrom(a,b){ var x=Math.min(a.x,b.x),y=Math.min(a.y,b.y); return {x:x,y:y,w:Math.max(6,Math.abs(b.x-a.x)),h:Math.max(6,Math.abs(b.y-a.y))}; }
+  function applyScale(s,snap,oldB,newB){
+    var sx=oldB.w?newB.w/oldB.w:1, sy=oldB.h?newB.h/oldB.h:1;
+    function m(px,py){ return {x:newB.x+(px-oldB.x)*sx, y:newB.y+(py-oldB.y)*sy}; }
+    if(isRectGeom(s)){ var a=m(snap.x,snap.y), b=m(snap.x+snap.w2,snap.y+snap.h2); s.x=Math.min(a.x,b.x); s.y=Math.min(a.y,b.y); s.w2=Math.abs(b.x-a.x); s.h2=Math.abs(b.y-a.y); }
+    else if(s.type==="arrow"){ var a2=m(snap.x1,snap.y1), b2=m(snap.x2,snap.y2); s.x1=a2.x; s.y1=a2.y; s.x2=b2.x; s.y2=b2.y; }
+    else { s.pts=snap.pts.map(function(p){ return m(p.x,p.y); }); }
+  }
+  function clearSelection(){ selected=null; }
+  function drawSelectionChrome(){
+    if(!selected) return;
+    var b=bboxOf(selected);
+    ctx.save();
+    ctx.strokeStyle="rgba(143,227,220,.95)"; ctx.lineWidth=1.5; ctx.setLineDash([6,4]);
+    ctx.strokeRect(b.x-2,b.y-2,b.w+4,b.h+4);
+    ctx.setLineDash([]);
+    var c=cornersOf(b); ctx.fillStyle="#8fe3dc";
+    for(var i=0;i<4;i++){ ctx.fillRect(c[i][0]-HANDLE/2, c[i][1]-HANDLE/2, HANDLE, HANDLE); }
+    ctx.restore();
+  }
+  function updateMoveCursor(pt){
+    if(selected){ var h=handleAt(selected,pt); if(h>=0){ stage.style.cursor=(h===0||h===2)?"nwse-resize":"nesw-resize"; return; } }
+    stage.style.cursor = (hitAnnotation(pt)||hitOverlay(pt)) ? "move" : "default";
+  }
+  function hiliteSwatch(box,col){ [].forEach.call(box.querySelectorAll(".sw"),function(e){ e.classList.toggle("sel", e.dataset.col===col); }); }
+  function hiliteFill(col){
+    var box=$("fillSwatches");
+    [].forEach.call(box.querySelectorAll(".sw"),function(e){ e.classList.remove("sel"); });
+    if(col==null){ var n=box.querySelector(".sw.none"); if(n) n.classList.add("sel"); } else hiliteSwatch(box,col);
+  }
+  function syncControlsToSelection(){
+    if(!selected) return;
+    if(selected.w!=null){ lineW=selected.w; $("width").value=selected.w; }
+    if(selected.color){ color=selected.color; hiliteSwatch($("swatches"), selected.color); }
+    if(isShape(selected)){
+      fillColor=selected.fill||null;
+      fillA=(selected.fillA==null?fillA:selected.fillA);
+      $("fillOpacity").value=Math.round(fillA*100); $("fillOpVal").textContent=Math.round(fillA*100)+"%";
+      hiliteFill(selected.fill||null);
+    }
+  }
+
   stage.addEventListener("pointerdown", function(ev){
     var pt=toStage(ev); stage.setPointerCapture(ev.pointerId);
     if(tool==="move"){
-      var o=hitOverlay(pt); if(!o) return;
-      overlays=overlays.filter(function(x){return x!==o;}); overlays.push(o); // bring to front
-      drag = inResize(o,pt) ? {ov:o,mode:"resize"} : {ov:o,mode:"move",dx:pt.x-o.x,dy:pt.y-o.y};
-      return;
+      // resize a selected annotation by a corner handle
+      if(selected){
+        var hc=handleAt(selected,pt);
+        if(hc>=0){ var ob=bboxOf(selected), opp=cornersOf(ob)[(hc+2)%4];
+          annDrag={mode:"resize", snap:snapshotGeom(selected), oldB:ob, anchor:{x:opp[0],y:opp[1]}}; return; }
+      }
+      // annotations sit above overlays, so try them first
+      var ann=hitAnnotation(pt);
+      if(ann){ selected=ann; syncControlsToSelection(); annDrag={mode:"move", last:{x:pt.x,y:pt.y}}; return; }
+      // otherwise move/resize an overlay
+      var o=hitOverlay(pt);
+      if(o){ selected=null; overlays=overlays.filter(function(x){return x!==o;}); overlays.push(o);
+        drag = inResize(o,pt) ? {ov:o,mode:"resize"} : {ov:o,mode:"move",dx:pt.x-o.x,dy:pt.y-o.y}; return; }
+      selected=null; return; // clicked empty space
     }
     if(tool==="erase"){ erasing=true; eraseAt(pt); return; }
     if(tool==="pen"||tool==="marker"){ current={type:tool,color:color,w:lineW,pts:[pt]}; }
     else if(tool==="box"||tool==="circle"||tool==="triangle"){ current={type:tool,color:color,fill:fillColor,fillA:fillA,w:lineW,x:pt.x,y:pt.y,w2:0,h2:0,_ox:pt.x,_oy:pt.y}; }
+    else if(tool==="sticker"){ current={type:"sticker",sticker:stickerId,x:pt.x,y:pt.y,w2:0,h2:0,_ox:pt.x,_oy:pt.y}; }
     else if(tool==="arrow"){ current={type:"arrow",color:color,w:lineW,x1:pt.x,y1:pt.y,x2:pt.x,y2:pt.y}; }
   });
 
@@ -742,10 +878,16 @@
       else { o.w=Math.max(60, pt.x-o.x); o.h=o.w/o.ratio; }
       return;
     }
+    if(annDrag){
+      if(annDrag.mode==="move"){ moveStroke(selected, pt.x-annDrag.last.x, pt.y-annDrag.last.y); annDrag.last={x:pt.x,y:pt.y}; }
+      else { applyScale(selected, annDrag.snap, annDrag.oldB, rectFrom(annDrag.anchor, pt)); }
+      return;
+    }
+    if(tool==="move"){ updateMoveCursor(pt); }
     if(erasing){ eraseAt(pt); return; }
     if(!current) return;
     if(current.type==="pen"||current.type==="marker"){ current.pts.push(pt); }
-    else if(current.type==="box"||current.type==="circle"||current.type==="triangle"){
+    else if(current.type==="box"||current.type==="circle"||current.type==="triangle"||current.type==="sticker"){
       current.x=Math.min(pt.x,current._ox); current.y=Math.min(pt.y,current._oy);
       current.w2=Math.abs(pt.x-current._ox); current.h2=Math.abs(pt.y-current._oy);
     } else if(current.type==="arrow"){ current.x2=pt.x; current.y2=pt.y; }
@@ -753,9 +895,11 @@
 
   function endPointer(){
     if(erasing){ erasing=false; }
+    if(annDrag){ annDrag=null; return; }
     if(drag){ drag=null; return; }
     if(current){
       var keep=true;
+      if(current.type==="sticker" && current.w2<8 && current.h2<8){ var D=84; current.x=current._ox-D/2; current.y=current._oy-D/2; current.w2=D; current.h2=D; }
       if((current.type==="box"||current.type==="circle"||current.type==="triangle") && current.w2<4 && current.h2<4) keep=false;
       if(current.type==="arrow" && Math.hypot(current.x2-current.x1,current.y2-current.y1)<4) keep=false;
       if((current.type==="pen"||current.type==="marker") && current.pts.length<2) keep=false;
@@ -767,7 +911,7 @@
   stage.addEventListener("pointercancel", endPointer);
 
   function eraseAt(pt){
-    for(var i=strokes.length-1;i>=0;i--){ if(strokeHit(strokes[i],pt)){ strokes.splice(i,1); return; } }
+    for(var i=strokes.length-1;i>=0;i--){ if(strokeHit(strokes[i],pt)){ if(strokes[i]===selected) clearSelection(); strokes.splice(i,1); return; } }
   }
   function strokeHit(s,pt){
     var pad=Math.max(10,s.w*1.5);
@@ -776,7 +920,7 @@
       for(var i=0;i<s.pts.length-1;i++){ if(distToSeg(pt, s.pts[i], s.pts[i+1])<=pad) return true; }
       return false;
     }
-    if(s.type==="box"||s.type==="circle"||s.type==="triangle"){ return pt.x>=s.x-pad&&pt.x<=s.x+s.w2+pad&&pt.y>=s.y-pad&&pt.y<=s.y+s.h2+pad; }
+    if(s.type==="box"||s.type==="circle"||s.type==="triangle"||s.type==="sticker"){ return pt.x>=s.x-pad&&pt.x<=s.x+s.w2+pad&&pt.y>=s.y-pad&&pt.y<=s.y+s.h2+pad; }
     if(s.type==="arrow"){ return distToSeg(pt,{x:s.x1,y:s.y1},{x:s.x2,y:s.y2})<=pad; }
     return false;
   }
@@ -791,6 +935,8 @@
   $("tools").addEventListener("click", function(ev){
     var t=ev.target.closest(".tool"); if(!t) return;
     tool=t.getAttribute("data-tool");
+    if(tool!=="move") clearSelection();
+    clearStickerSel();
     [].forEach.call(document.querySelectorAll(".tool"),function(el){ el.classList.toggle("sel", el===t); });
     stage.style.cursor = (tool==="move")? "default" : (tool==="erase"? "cell":"crosshair");
   });
@@ -798,32 +944,58 @@
   (function buildStrokeSwatches(){
     var box=$("swatches");
     COLORS.forEach(function(c,i){
-      var sw=document.createElement("button"); sw.className="sw"+(i===0?" sel":""); sw.style.background=c;
+      var sw=document.createElement("button"); sw.className="sw"+(i===0?" sel":""); sw.style.background=c; sw.dataset.col=c;
       sw.setAttribute("aria-label","Stroke color "+c);
-      sw.addEventListener("click",function(){ color=c;
-        [].forEach.call(box.querySelectorAll(".sw"),function(e){e.classList.remove("sel");}); sw.classList.add("sel"); });
+      sw.addEventListener("click",function(){ color=c; hiliteSwatch(box,c); if(selected&&selected.type!=="sticker") selected.color=c; });
       box.appendChild(sw);
     });
   })();
   (function buildFillSwatches(){
     var box=$("fillSwatches");
-    // first swatch is "no fill" (outline only), selected by default
     var none=document.createElement("button"); none.className="sw none sel"; none.setAttribute("aria-label","No fill");
-    none.addEventListener("click",function(){ fillColor=null;
-      [].forEach.call(box.querySelectorAll(".sw"),function(e){e.classList.remove("sel");}); none.classList.add("sel"); });
+    none.addEventListener("click",function(){ fillColor=null; hiliteFill(null); if(selected&&isShape(selected)) selected.fill=null; });
     box.appendChild(none);
     COLORS.forEach(function(c){
-      var sw=document.createElement("button"); sw.className="sw"; sw.style.background=c;
+      var sw=document.createElement("button"); sw.className="sw"; sw.style.background=c; sw.dataset.col=c;
       sw.setAttribute("aria-label","Fill color "+c);
-      sw.addEventListener("click",function(){ fillColor=c;
-        [].forEach.call(box.querySelectorAll(".sw"),function(e){e.classList.remove("sel");}); sw.classList.add("sel"); });
+      sw.addEventListener("click",function(){ fillColor=c; hiliteFill(c); if(selected&&isShape(selected)) selected.fill=c; });
       box.appendChild(sw);
     });
   })();
-  $("fillOpacity").addEventListener("input", function(){ fillA=+this.value/100; $("fillOpVal").textContent=this.value+"%"; });
-  $("width").addEventListener("input", function(){ lineW=+this.value; });
-  $("btnUndo").addEventListener("click", function(){ strokes.pop(); });
-  $("btnClear").addEventListener("click", function(){ strokes=[]; });
+  $("fillOpacity").addEventListener("input", function(){ fillA=+this.value/100; $("fillOpVal").textContent=this.value+"%"; if(selected&&isShape(selected)) selected.fillA=fillA; });
+  $("width").addEventListener("input", function(){ lineW=+this.value; if(selected&&selected.type!=="sticker") selected.w=lineW; });
+
+  var STICKERS=[
+    {id:"thumbsup",label:"Thumbs up"},{id:"thumbsdown",label:"Thumbs down"},
+    {id:"star",label:"Yellow star"},{id:"redx",label:"Red X"},
+    {id:"smiley",label:"Smiley face"},{id:"check",label:"Green check"},
+    {id:"exclaim",label:"Exclamation"},{id:"question",label:"Question"}
+  ];
+  (function buildStickers(){
+    var box=$("stickers");
+    STICKERS.forEach(function(st){
+      var b=document.createElement("button"); b.className="stk"; b.title=st.label; b.setAttribute("aria-label",st.label);
+      var cv=document.createElement("canvas"); cv.width=52; cv.height=52; b.appendChild(cv);
+      paintSticker(cv.getContext("2d"), st.id, 6, 6, 40);
+      b.addEventListener("click",function(){
+        tool="sticker"; stickerId=st.id; clearSelection();
+        [].forEach.call(document.querySelectorAll(".tool"),function(el){ el.classList.remove("sel"); });
+        [].forEach.call(box.querySelectorAll(".stk"),function(e){ e.classList.remove("sel"); }); b.classList.add("sel");
+        stage.style.cursor="crosshair";
+      });
+      box.appendChild(b);
+    });
+  })();
+  function clearStickerSel(){ [].forEach.call(document.querySelectorAll("#stickers .stk"),function(e){ e.classList.remove("sel"); }); }
+  $("btnUndo").addEventListener("click", function(){ var s=strokes.pop(); if(s&&s===selected) clearSelection(); });
+  $("btnClear").addEventListener("click", function(){ strokes=[]; clearSelection(); });
+
+  document.addEventListener("keydown", function(e){
+    var a=document.activeElement, typing=a && (a.tagName==="INPUT"||a.tagName==="TEXTAREA"||a.tagName==="SELECT");
+    if(typing || !selected) return;
+    if(e.key==="Delete"||e.key==="Backspace"){ strokes=strokes.filter(function(x){return x!==selected;}); clearSelection(); e.preventDefault(); }
+    else if(e.key==="Escape"){ clearSelection(); }
+  });
 
   // =========================================================
   // Shared mix: one canvas capture + one audio graph, reference-counted
@@ -1221,6 +1393,9 @@
     t("arrow hit-test geometry", strokeHit({type:"arrow",w:3,x1:0,y1:0,x2:100,y2:0},{x:50,y:2}));
     t("eraser hits between line points", strokeHit({type:"pen",w:5,pts:[{x:0,y:0},{x:100,y:0}]},{x:50,y:3}));
     t("shape hit-test (circle bounds)", strokeHit({type:"circle",w:3,x:0,y:0,w2:40,h2:40},{x:20,y:20}));
+    t("annotation move", (function(){ var s={type:"box",w:3,x:10,y:10,w2:20,h2:20}; moveStroke(s,5,7); return s.x===15&&s.y===17; })());
+    t("annotation resize (double bbox)", (function(){ var s={type:"box",w:3,x:0,y:0,w2:20,h2:20}; applyScale(s, snapshotGeom(s), bboxOf(s), {x:0,y:0,w:40,h:40}); return Math.round(s.w2)===40; })());
+    t("sticker geometry (move + bbox)", (function(){ var s={type:"sticker",sticker:"star",x:0,y:0,w2:80,h2:80}; moveStroke(s,10,0); return bboxOf(s).x===10 && bboxOf(s).w===80; })());
 
     $("testSummary").innerHTML = fail===0
       ? "<span style='color:var(--ok)'>"+pass+"/"+(pass+fail)+" passed. Instrument nominal.</span>"
