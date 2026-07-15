@@ -16,7 +16,9 @@ The name comes from limelight, the intense stage light that once lit a performer
 2. Add a screen, one or more cameras, and any images. Drag and resize overlays with the Move tool.
 3. In the Audio panel, click Enable to turn on your microphone (grant permission the first time), pick a device, set gain, and watch the level meter. Toggle System audio to capture computer sound too.
 4. Mark up the frame with the pen, highlighter, arrow, box, circle, triangle, and eraser. Shapes take a stroke color plus an optional fill color and fill opacity.
-5. Press RECORD. Press Stop to drop a take into the list with a preview and a Download button.
+4b. Drop a scalable sticker from the Stickers row: thumbs up, thumbs down, yellow star, red X, smiley face, green check, purple exclamation, or blue question. Click to place at a default size or drag to size it; stickers select, move, and resize like any other mark.
+5. Switch to the Move tool to select any mark: drag it to reposition, drag a corner handle to resize, and change its stroke, fill, or opacity from the same controls. Delete or Backspace removes the selected mark; Escape deselects. Selection handles never appear in the recording.
+6. Press RECORD. Press Stop to drop a take into the list with a preview and a Download button.
 
 Nothing leaves your machine. Recordings are held in memory until you download them.
 
