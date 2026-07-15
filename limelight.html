@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- LIMELIGHT :: limelight.html :: v0.4.0 -->
+<!-- LIMELIGHT :: limelight.html :: v0.6.0 -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -118,7 +118,7 @@
   }
 
   /* ---- deck (control strip) ---- */
-  .deck{display:grid;grid-template-columns:1fr 1fr auto;gap:12px;margin-top:14px}
+  .deck{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}
   @media(max-width:840px){.deck{grid-template-columns:1fr}}
   .group{
     background:linear-gradient(180deg,var(--panel-2),var(--panel));
@@ -159,8 +159,11 @@
   .tool.sel{color:var(--rack);background:var(--phos);border-color:var(--phos)}
   .tool.sel svg{stroke:var(--rack)}
   .swatches{display:flex;gap:6px;flex-wrap:wrap}
+  .swlabel{font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-faint);min-width:44px}
   .sw{width:26px;height:26px;border-radius:5px;border:2px solid transparent;cursor:pointer}
   .sw.sel{border-color:#fff;box-shadow:0 0 0 1px #000}
+  .sw.none{background:var(--panel-2);position:relative;overflow:hidden}
+  .sw.none::after{content:"";position:absolute;left:1px;right:1px;top:11px;height:2px;background:var(--tally);transform:rotate(-45deg);transform-origin:center}
   input[type=range]{accent-color:var(--phos);width:110px}
 
   /* transport */
@@ -255,6 +258,15 @@
   .status-dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--ink-faint);margin-right:7px;vertical-align:middle}
   .status-dot.ok{background:var(--ok)} .status-dot.bad{background:var(--bad)} .status-dot.warn{background:var(--amber)}
 
+  /* audio panel + level meter */
+  .audioctl input[type=range]{flex:1;min-width:90px}
+  .meter{position:relative;height:14px;border-radius:4px;margin-top:10px;overflow:hidden;border:1px solid var(--edge);
+    background:linear-gradient(90deg,#3aa76a 0%,#3aa76a 55%,#c98a3a 76%,#c0393d 100%)}
+  .meter-mask{position:absolute;top:0;right:0;bottom:0;width:100%;background:#0c1016}
+  .meter-peak{position:absolute;top:-1px;bottom:-1px;width:2px;background:#fff;opacity:0;left:0}
+  .meter-scale{display:flex;justify-content:space-between;font-family:var(--mono);font-size:9px;color:var(--ink-faint);margin-top:3px;letter-spacing:.04em}
+  button.armed-mute{border-color:var(--tally);color:var(--tally)}
+
   :focus-visible{outline:2px solid var(--focus);outline-offset:2px}
   @media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
@@ -267,7 +279,7 @@
       <h1>LIMELIGHT</h1>
       <span class="fi-tag">FI-100</span>
     </div>
-    <span class="ver" id="verTag">v0.4.0</span>
+    <span class="ver" id="verTag">v0.6.0</span>
     <div class="spacer"></div>
     <button class="linkbtn" id="btnTest">SELF-TEST</button>
     <button class="linkbtn" id="btnAbout">ABOUT</button>
@@ -302,10 +314,6 @@
         <button class="ctl" id="btnAddImg">Add image</button>
         <input type="file" id="imgFile" accept="image/*" multiple hidden>
       </div>
-      <div class="row">
-        <select class="ctl" id="micSelect" aria-label="Microphone"><option value="">No microphone</option></select>
-        <label class="chk"><input type="checkbox" id="sysAudio"> System audio</label>
-      </div>
       <div class="cams" id="camChips"></div>
     </div>
 
@@ -319,17 +327,46 @@
           <div class="tool" data-tool="marker" title="Highlighter" aria-label="Highlighter"><svg viewBox="0 0 24 24"><path d="M5 19h14M6 15l7-9 4 3-7 9H6v-3z"/></svg></div>
           <div class="tool" data-tool="arrow" title="Arrow" aria-label="Arrow"><svg viewBox="0 0 24 24"><path d="M5 19L19 5M19 5h-7M19 5v7"/></svg></div>
           <div class="tool" data-tool="box" title="Box" aria-label="Box"><svg viewBox="0 0 24 24"><rect x="4" y="6" width="16" height="12" rx="1"/></svg></div>
+          <div class="tool" data-tool="circle" title="Circle" aria-label="Circle"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/></svg></div>
+          <div class="tool" data-tool="triangle" title="Triangle" aria-label="Triangle"><svg viewBox="0 0 24 24"><path d="M12 5 L19 19 L5 19 Z"/></svg></div>
           <div class="tool" data-tool="erase" title="Erase a mark" aria-label="Erase"><svg viewBox="0 0 24 24"><path d="M7 21h10M5 15l6-9 8 5-5 8H8l-3-4z"/></svg></div>
         </div>
       </div>
       <div class="row">
+        <span class="swlabel">Stroke</span>
         <div class="swatches" id="swatches"></div>
-        <input type="range" id="width" min="2" max="18" value="5" aria-label="Line width">
+        <input type="range" id="width" min="2" max="18" value="5" aria-label="Line width" title="Line width">
+      </div>
+      <div class="row">
+        <span class="swlabel">Fill</span>
+        <div class="swatches" id="fillSwatches"></div>
+        <input type="range" id="fillOpacity" min="0" max="100" value="35" aria-label="Fill opacity" title="Fill opacity">
+        <span class="hint" id="fillOpVal">35%</span>
       </div>
       <div class="row">
         <button class="ctl" id="btnUndo">Undo mark</button>
         <button class="ctl" id="btnClear">Clear marks</button>
       </div>
+    </div>
+
+    <!-- audio -->
+    <div class="group audioctl">
+      <h2>Audio</h2>
+      <div class="row">
+        <select class="ctl" id="micSelect" aria-label="Microphone"><option value="">No microphone</option></select>
+        <button class="ctl" id="btnMic">Enable</button>
+      </div>
+      <div class="row">
+        <button class="ctl" id="btnMute" disabled>Mute</button>
+        <label class="chk"><input type="checkbox" id="sysAudio"> System audio</label>
+      </div>
+      <div class="row">
+        <span class="hint">Gain</span>
+        <input type="range" id="micGain" min="0" max="200" value="100" disabled aria-label="Microphone gain">
+        <span class="hint" id="gainVal">100%</span>
+      </div>
+      <div class="meter" id="meterWrap"><div class="meter-mask" id="meterMask"></div><div class="meter-peak" id="meterPeak"></div></div>
+      <div class="meter-scale"><span>-60</span><span>-40</span><span>-20</span><span>0 dB</span></div>
     </div>
 
     <!-- transport -->
@@ -373,7 +410,7 @@
 
 <!-- About dialog -->
 <dialog id="aboutDlg">
-  <div class="dhead"><h3>LIMELIGHT</h3><span class="ver">FI-100 &middot; v0.4.0</span><div class="spacer"></div><button class="linkbtn" id="aboutClose">CLOSE</button></div>
+  <div class="dhead"><h3>LIMELIGHT</h3><span class="ver">FI-100 &middot; v0.6.0</span><div class="spacer"></div><button class="linkbtn" id="aboutClose">CLOSE</button></div>
   <div class="dbody">
     <p><b>LIMELIGHT</b> is a from-disk screen recorder. It composites a screen share, camera overlays, image overlays, and freehand annotation into a single video, mixes in the microphone and system audio you choose, and writes a <code>.webm</code> you download. Limelight was the intense stage light that lit a performer for the whole house, so the name fits a tool for putting your screen in front of the world.</p>
     <p>Everything runs locally in the browser. No frames, audio, or recordings are uploaded anywhere. Files stay on this machine until you download and move them.</p>
@@ -382,7 +419,7 @@
     <p><b>Feedback:</b> report issues at <a href="https://greenshoegarage.com" target="_blank" rel="noopener">greenshoegarage.com</a>.</p>
     <p><label class="chk"><input type="checkbox" id="dbgToggle"> Debug logging to console</label></p>
     <p><b>Streaming to YouTube and Twitch</b> runs through <b>SEMAPHORE</b>, a small companion relay (<code>semaphore.py</code>) you run on the same machine. Those platforms ingest over RTMP, which a page at <code>file://</code> cannot speak, so the relay does the RTMP push with ffmpeg. LIMELIGHT sends the composited feed to the relay over <code>ws://localhost</code>. Your stream keys live only in the relay's local config, never in this page, so nothing secret is stored in the file. Recording still works with no relay and no network at all.</p>
-    <p class="hint">Known limitations in v0.4.0: Chromium-based browsers recommended (screen and camera capture from <code>file://</code> rely on the secure-context treatment Chromium gives local files). Output is WebM (Safari support is limited). Streaming needs SEMAPHORE plus ffmpeg installed; the relay transcodes to H.264/AAC, which adds a few seconds of latency. Single monitor/window per session. No PWA layer yet. Recordings are held in memory, so a very long take uses a lot of RAM.</p>
+    <p class="hint">Known limitations in v0.6.0: Chromium-based browsers recommended (screen and camera capture from <code>file://</code> rely on the secure-context treatment Chromium gives local files). Output is WebM (Safari support is limited). Streaming needs SEMAPHORE plus ffmpeg installed; the relay transcodes to H.264/AAC, which adds a few seconds of latency. Single monitor/window per session. No PWA layer yet. Recordings are held in memory, so a very long take uses a lot of RAM.</p>
   </div>
 </dialog>
 
@@ -399,7 +436,7 @@
 "use strict";
 (function(){
   // ---- version ----
-  var VERSION = "0.4.0";
+  var VERSION = "0.6.0";
 
   // ---- debug logging behind an in-app toggle ----
   var DEBUG = false;
@@ -421,6 +458,8 @@
   var current = null;               // in-progress stroke
   var tool = "move";
   var color = "#ffd24a";
+  var fillColor = null;             // null = no fill (outline only)
+  var fillA = 0.35;                 // fill opacity 0..1
   var lineW = 5;
   var rafId = null;
   var recorder = null, chunks = [], recording = false, paused = false;
@@ -504,8 +543,13 @@
     if(s.type==="pen"||s.type==="marker"){
       var p=s.pts; if(p.length){ ctx.beginPath(); ctx.moveTo(p[0].x,p[0].y);
         for(var i=1;i<p.length;i++) ctx.lineTo(p[i].x,p[i].y); ctx.stroke(); }
-    } else if(s.type==="box"){
-      ctx.strokeRect(s.x, s.y, s.w2, s.h2);
+    } else if(s.type==="box"||s.type==="circle"||s.type==="triangle"){
+      ctx.beginPath();
+      if(s.type==="box"){ ctx.rect(s.x,s.y,s.w2,s.h2); }
+      else if(s.type==="circle"){ ctx.ellipse(s.x+s.w2/2, s.y+s.h2/2, Math.max(0.1,s.w2/2), Math.max(0.1,s.h2/2), 0, 0, Math.PI*2); }
+      else { ctx.moveTo(s.x+s.w2/2, s.y); ctx.lineTo(s.x, s.y+s.h2); ctx.lineTo(s.x+s.w2, s.y+s.h2); ctx.closePath(); }
+      if(s.fill){ ctx.globalAlpha=(s.fillA==null?1:s.fillA); ctx.fillStyle=s.fill; ctx.fill(); ctx.globalAlpha=1; }
+      ctx.strokeStyle=s.color; ctx.lineWidth=s.w; ctx.stroke();
     } else if(s.type==="arrow"){
       var a=Math.atan2(s.y2-s.y1, s.x2-s.x1), head=Math.max(10, s.w*2.4);
       ctx.beginPath(); ctx.moveTo(s.x1,s.y1); ctx.lineTo(s.x2,s.y2); ctx.stroke();
@@ -539,12 +583,12 @@
       screenVideo.muted = true; screenVideo.playsInline = true; screenVideo.srcObject = s;
       await screenVideo.play().catch(function(){});
       vt.addEventListener("ended", function(){
-        stopScreen(); refreshEmpty();
+        stopScreen(); refreshEmpty(); wireSystemAudio();
         if(recording) stopRecording();
       });
       $("btnScreen").textContent = "Replace screen";
       $("btnScreen").classList.add("armed");
-      startLoop(); updateReady();
+      startLoop(); updateReady(); wireSystemAudio();
       log("screen started", set);
     }catch(e){ log("screen cancelled", e); }
   });
@@ -686,7 +730,7 @@
     }
     if(tool==="erase"){ erasing=true; eraseAt(pt); return; }
     if(tool==="pen"||tool==="marker"){ current={type:tool,color:color,w:lineW,pts:[pt]}; }
-    else if(tool==="box"){ current={type:"box",color:color,w:lineW,x:pt.x,y:pt.y,w2:0,h2:0,_ox:pt.x,_oy:pt.y}; }
+    else if(tool==="box"||tool==="circle"||tool==="triangle"){ current={type:tool,color:color,fill:fillColor,fillA:fillA,w:lineW,x:pt.x,y:pt.y,w2:0,h2:0,_ox:pt.x,_oy:pt.y}; }
     else if(tool==="arrow"){ current={type:"arrow",color:color,w:lineW,x1:pt.x,y1:pt.y,x2:pt.x,y2:pt.y}; }
   });
 
@@ -701,7 +745,7 @@
     if(erasing){ eraseAt(pt); return; }
     if(!current) return;
     if(current.type==="pen"||current.type==="marker"){ current.pts.push(pt); }
-    else if(current.type==="box"){
+    else if(current.type==="box"||current.type==="circle"||current.type==="triangle"){
       current.x=Math.min(pt.x,current._ox); current.y=Math.min(pt.y,current._oy);
       current.w2=Math.abs(pt.x-current._ox); current.h2=Math.abs(pt.y-current._oy);
     } else if(current.type==="arrow"){ current.x2=pt.x; current.y2=pt.y; }
@@ -712,7 +756,7 @@
     if(drag){ drag=null; return; }
     if(current){
       var keep=true;
-      if(current.type==="box" && current.w2<4 && current.h2<4) keep=false;
+      if((current.type==="box"||current.type==="circle"||current.type==="triangle") && current.w2<4 && current.h2<4) keep=false;
       if(current.type==="arrow" && Math.hypot(current.x2-current.x1,current.y2-current.y1)<4) keep=false;
       if((current.type==="pen"||current.type==="marker") && current.pts.length<2) keep=false;
       if(keep) strokes.push(current);
@@ -732,7 +776,7 @@
       for(var i=0;i<s.pts.length-1;i++){ if(distToSeg(pt, s.pts[i], s.pts[i+1])<=pad) return true; }
       return false;
     }
-    if(s.type==="box"){ return pt.x>=s.x-pad&&pt.x<=s.x+s.w2+pad&&pt.y>=s.y-pad&&pt.y<=s.y+s.h2+pad; }
+    if(s.type==="box"||s.type==="circle"||s.type==="triangle"){ return pt.x>=s.x-pad&&pt.x<=s.x+s.w2+pad&&pt.y>=s.y-pad&&pt.y<=s.y+s.h2+pad; }
     if(s.type==="arrow"){ return distToSeg(pt,{x:s.x1,y:s.y1},{x:s.x2,y:s.y2})<=pad; }
     return false;
   }
@@ -751,16 +795,32 @@
     stage.style.cursor = (tool==="move")? "default" : (tool==="erase"? "cell":"crosshair");
   });
 
-  (function buildSwatches(){
+  (function buildStrokeSwatches(){
     var box=$("swatches");
     COLORS.forEach(function(c,i){
       var sw=document.createElement("button"); sw.className="sw"+(i===0?" sel":""); sw.style.background=c;
-      sw.setAttribute("aria-label","Color "+c);
+      sw.setAttribute("aria-label","Stroke color "+c);
       sw.addEventListener("click",function(){ color=c;
-        [].forEach.call(document.querySelectorAll(".sw"),function(e){e.classList.remove("sel");}); sw.classList.add("sel"); });
+        [].forEach.call(box.querySelectorAll(".sw"),function(e){e.classList.remove("sel");}); sw.classList.add("sel"); });
       box.appendChild(sw);
     });
   })();
+  (function buildFillSwatches(){
+    var box=$("fillSwatches");
+    // first swatch is "no fill" (outline only), selected by default
+    var none=document.createElement("button"); none.className="sw none sel"; none.setAttribute("aria-label","No fill");
+    none.addEventListener("click",function(){ fillColor=null;
+      [].forEach.call(box.querySelectorAll(".sw"),function(e){e.classList.remove("sel");}); none.classList.add("sel"); });
+    box.appendChild(none);
+    COLORS.forEach(function(c){
+      var sw=document.createElement("button"); sw.className="sw"; sw.style.background=c;
+      sw.setAttribute("aria-label","Fill color "+c);
+      sw.addEventListener("click",function(){ fillColor=c;
+        [].forEach.call(box.querySelectorAll(".sw"),function(e){e.classList.remove("sel");}); sw.classList.add("sel"); });
+      box.appendChild(sw);
+    });
+  })();
+  $("fillOpacity").addEventListener("input", function(){ fillA=+this.value/100; $("fillOpVal").textContent=this.value+"%"; });
   $("width").addEventListener("input", function(){ lineW=+this.value; });
   $("btnUndo").addEventListener("click", function(){ strokes.pop(); });
   $("btnClear").addEventListener("click", function(){ strokes=[]; });
@@ -776,19 +836,19 @@
     var cs=stage.captureStream(recFps);
     var ms=new MediaStream();
     cs.getVideoTracks().forEach(function(t){ ms.addTrack(t); });
-    var audio=await buildAudioTrack();
-    if(audio){ ms.addTrack(audio.track); }
-    mix={ stream:ms, canvasStream:cs, audio:audio };
+    if(hasAudio() && au.mixDest){
+      var at=au.mixDest.stream.getAudioTracks()[0];
+      if(at) ms.addTrack(at);
+    }
+    mix={ stream:ms, canvasStream:cs };
     return mix;
   }
   function releaseMix(){
+    // Only the canvas capture is per-session. The audio subsystem (mic,
+    // meter, gain) persists so the level meter keeps working between takes.
     mixRef=Math.max(0,mixRef-1);
     if(mixRef===0 && mix){
       try{ mix.canvasStream.getTracks().forEach(function(t){ t.stop(); }); }catch(e){}
-      if(mix.audio){
-        if(mix.audio.micStream) mix.audio.micStream.getTracks().forEach(function(t){ t.stop(); });
-        if(mix.audio.ctx){ try{ mix.audio.ctx.close(); }catch(e){} }
-      }
       mix=null;
     }
   }
@@ -802,28 +862,121 @@
     return "";
   }
 
-  async function buildAudioTrack(){
-    var micId=$("micSelect").value;
-    var wantSys=$("sysAudio").checked && screenStream && screenStream.getAudioTracks().length>0;
-    var wantMic=!!micId;
-    if(!wantMic && !wantSys) return null;
-    var AC=window.AudioContext||window.webkitAudioContext; if(!AC) return null;
-    var actx=new AC(); if(actx.state==="suspended"){ try{ await actx.resume(); }catch(e){} }
-    var dest=actx.createMediaStreamDestination();
-    var micStream=null;
-    if(wantMic){
-      try{
-        micStream=await navigator.mediaDevices.getUserMedia({ audio:{ deviceId:{exact:micId} }, video:false });
-        actx.createMediaStreamSource(micStream).connect(dest);
-      }catch(e){ log("mic failed",e); }
-    }
-    if(wantSys){
-      try{ var sysMs=new MediaStream(screenStream.getAudioTracks());
-        actx.createMediaStreamSource(sysMs).connect(dest); }catch(e){ log("sys audio failed",e); }
-    }
-    var track=dest.stream.getAudioTracks()[0];
-    return track ? { track:track, ctx:actx, micStream:micStream } : null;
+  // =========================================================
+  // Audio subsystem: a persistent AudioContext with a live microphone,
+  // gain, mute, a level meter, and optional system audio, all feeding one
+  // MediaStreamDestination that record and stream pull from.
+  // =========================================================
+  var au = { ctx:null, mixDest:null, micStream:null, src:null, gain:null, analyser:null,
+             sysSrc:null, muted:false, gainVal:1, meterRAF:null, peak:0 };
+
+  function ensureCtx(){
+    if(!au.ctx){ var AC=window.AudioContext||window.webkitAudioContext; if(!AC) return null; au.ctx=new AC(); }
+    if(au.ctx.state==="suspended"){ au.ctx.resume().catch(function(){}); }
+    return au.ctx;
   }
+  function ensureMixDest(){ ensureCtx(); if(au.ctx && !au.mixDest){ au.mixDest=au.ctx.createMediaStreamDestination(); } return au.mixDest; }
+  function hasAudio(){ return !!(au.micStream || au.sysSrc); }
+
+  async function startMic(deviceId){
+    if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){ alert("No microphone access (getUserMedia) in this browser."); return; }
+    if(!ensureCtx()){ alert("This browser has no Web Audio support for the mic meter."); return; }
+    ensureMixDest();
+    stopMicNodes();
+    // Before the first permission grant, device IDs are hidden, so an empty id
+    // means "default microphone" (audio:true). AGC is off so the gain slider matters.
+    var a={ echoCancellation:true, noiseSuppression:true, autoGainControl:false };
+    if(deviceId) a.deviceId={ exact:deviceId };
+    var s;
+    try{ s=await navigator.mediaDevices.getUserMedia({ audio:a, video:false }); }
+    catch(e){ alert("Could not open the microphone. Grant mic permission when prompted, or it may be in use by another app."); log(e); return; }
+    au.micStream=s;
+    au.src=au.ctx.createMediaStreamSource(s);
+    au.gain=au.ctx.createGain(); au.gain.gain.value = au.muted?0:au.gainVal;
+    au.analyser=au.ctx.createAnalyser(); au.analyser.fftSize=1024; au.analyser.smoothingTimeConstant=0.6;
+    au.src.connect(au.analyser);        // meter tap (pre-gain, shows the raw input)
+    au.src.connect(au.gain);
+    au.gain.connect(au.mixDest);        // gained mic into the recording/stream mix
+    startMeter();
+    await enumerate();                  // labels + real device IDs now available
+    var t=s.getAudioTracks()[0], id=(t && t.getSettings && t.getSettings().deviceId) || deviceId || "";
+    selectMicOption(id);
+    setMicUI(true);
+    log("mic started", id);
+  }
+  function stopMicNodes(){
+    try{ if(au.src) au.src.disconnect(); }catch(e){}
+    try{ if(au.gain) au.gain.disconnect(); }catch(e){}
+    try{ if(au.analyser) au.analyser.disconnect(); }catch(e){}
+    if(au.micStream){ au.micStream.getTracks().forEach(function(t){ t.stop(); }); }
+    au.src=au.gain=au.analyser=null; au.micStream=null;
+  }
+  function stopMic(){
+    stopMeter(); stopMicNodes(); setMicUI(false);
+    $("micSelect").value=""; drawMeter(0,0);
+  }
+  function setGain(v){ au.gainVal=v; if(au.gain && !au.muted) au.gain.gain.value=v; }
+  function setMute(m){
+    au.muted=m; if(au.gain) au.gain.gain.value = m?0:au.gainVal;
+    $("btnMute").textContent = m?"Muted":"Mute";
+    $("btnMute").classList.toggle("armed-mute", m);
+  }
+  function wireSystemAudio(){
+    var want=$("sysAudio").checked && screenStream && screenStream.getAudioTracks().length>0;
+    if(want){
+      ensureMixDest();
+      if(!au.sysSrc && au.ctx){
+        try{ au.sysSrc=au.ctx.createMediaStreamSource(new MediaStream(screenStream.getAudioTracks())); au.sysSrc.connect(au.mixDest); }
+        catch(e){ log("sys audio failed",e); }
+      }
+    } else if(au.sysSrc){
+      try{ au.sysSrc.disconnect(); }catch(e){} au.sysSrc=null;
+    }
+  }
+
+  // meter
+  function startMeter(){ stopMeter(); meterTick(); }
+  function stopMeter(){ if(au.meterRAF){ cancelAnimationFrame(au.meterRAF); au.meterRAF=null; } }
+  function meterTick(){
+    if(au.analyser){
+      var n=au.analyser.fftSize, buf=new Uint8Array(n);
+      au.analyser.getByteTimeDomainData(buf);
+      var sum=0; for(var i=0;i<n;i++){ var v=(buf[i]-128)/128; sum+=v*v; }
+      var rms=Math.sqrt(sum/n);
+      var db=20*Math.log10(rms||1e-8);
+      var level=Math.max(0,Math.min(100,(db+60)/60*100));
+      au.peak=Math.max(level, au.peak-1.5);
+      drawMeter(level, au.peak);
+    }
+    au.meterRAF=requestAnimationFrame(meterTick);
+  }
+  function drawMeter(level, peak){
+    $("meterMask").style.width=(100-(level||0))+"%";
+    $("meterPeak").style.left=(peak||0)+"%";
+    $("meterPeak").style.opacity=(peak && peak>1)?"1":"0";
+  }
+
+  // audio UI
+  function setMicUI(on){
+    $("btnMic").textContent = on?"Disable":"Enable";
+    $("btnMic").classList.toggle("armed", on);
+    $("btnMute").disabled = !on;
+    $("micGain").disabled = !on;
+    if(!on) setMute(false);
+  }
+  function selectMicOption(id){
+    var sel=$("micSelect");
+    if(!id) return;
+    for(var i=0;i<sel.options.length;i++){ if(sel.options[i].value===id){ sel.value=id; return; } }
+  }
+  $("btnMic").addEventListener("click", function(){ if(au.micStream) stopMic(); else startMic($("micSelect").value||null); });
+  $("micSelect").addEventListener("change", function(){
+    if(this.value===""){ if(au.micStream) stopMic(); }
+    else startMic(this.value);
+  });
+  $("micGain").addEventListener("input", function(){ setGain(this.value/100); $("gainVal").textContent=this.value+"%"; });
+  $("btnMute").addEventListener("click", function(){ setMute(!au.muted); });
+  $("sysAudio").addEventListener("change", wireSystemAudio);
 
   $("btnRec").addEventListener("click", async function(){
     if(recording) return;
@@ -1046,6 +1199,8 @@
     t("canvas.captureStream present", typeof stage.captureStream==="function");
     var mime=pickMime(); t("a supported record format exists ("+(mime||"none")+")", !!mime);
     t("AudioContext available", !!(window.AudioContext||window.webkitAudioContext));
+    var _AC=window.AudioContext||window.webkitAudioContext;
+    t("AnalyserNode available (level meter)", !!(_AC && _AC.prototype && _AC.prototype.createAnalyser));
     t("FileReader / object URLs for images", typeof URL.createObjectURL==="function");
     t("WebSocket available (relay transport)", "WebSocket" in window);
     var sm=streamMime(); t("a WebM streaming format exists ("+(sm||"none")+")", !!sm);
@@ -1065,6 +1220,7 @@
     t("overlay add + remove", addOk && overlays.length===ob);
     t("arrow hit-test geometry", strokeHit({type:"arrow",w:3,x1:0,y1:0,x2:100,y2:0},{x:50,y:2}));
     t("eraser hits between line points", strokeHit({type:"pen",w:5,pts:[{x:0,y:0},{x:100,y:0}]},{x:50,y:3}));
+    t("shape hit-test (circle bounds)", strokeHit({type:"circle",w:3,x:0,y:0,w2:40,h2:40},{x:20,y:20}));
 
     $("testSummary").innerHTML = fail===0
       ? "<span style='color:var(--ok)'>"+pass+"/"+(pass+fail)+" passed. Instrument nominal.</span>"
