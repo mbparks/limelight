@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- LIMELIGHT :: limelight.html :: v0.8.1 -->
+<!-- LIMELIGHT :: limelight.html :: v0.9.0 -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -165,6 +165,12 @@
   .stk canvas{width:26px;height:26px;display:block}
   .stk:hover{border-color:var(--phos-dim)}
   .stk.sel{border-color:var(--phos);box-shadow:0 0 0 1px var(--phos)}
+  .textctl textarea{width:100%;min-height:44px;resize:vertical;font-family:var(--sans);font-size:13px;background:var(--panel-2);color:var(--ink);border:1px solid var(--edge-hi);border-radius:5px;padding:8px}
+  .textctl input[type=range]{flex:1;min-width:70px}
+  .tstyle{display:flex;gap:6px}
+  .tbtn{width:36px;height:36px;background:var(--panel-2);border:1px solid var(--edge-hi);border-radius:5px;color:var(--ink);cursor:pointer;font-size:15px}
+  .tbtn:hover{border-color:var(--phos-dim)}
+  .tbtn.on{background:var(--phos);color:var(--rack);border-color:var(--phos)}
   .sw{width:26px;height:26px;border-radius:5px;border:2px solid transparent;cursor:pointer}
   .sw.sel{border-color:#fff;box-shadow:0 0 0 1px #000}
   .sw.none{background:var(--panel-2);position:relative;overflow:hidden}
@@ -284,8 +290,11 @@
       <h1>LIMELIGHT</h1>
       <span class="fi-tag">FI-100</span>
     </div>
-    <span class="ver" id="verTag">v0.8.1</span>
+    <span class="ver" id="verTag">v0.9.0</span>
     <div class="spacer"></div>
+    <button class="linkbtn" id="btnExport">EXPORT</button>
+    <button class="linkbtn" id="btnImport">IMPORT</button>
+    <input type="file" id="sceneFile" accept="application/json,.json" hidden>
     <button class="linkbtn" id="btnTest">SELF-TEST</button>
     <button class="linkbtn" id="btnAbout">ABOUT</button>
   </header>
@@ -334,6 +343,7 @@
           <div class="tool" data-tool="box" title="Box" aria-label="Box"><svg viewBox="0 0 24 24"><rect x="4" y="6" width="16" height="12" rx="1"/></svg></div>
           <div class="tool" data-tool="circle" title="Circle" aria-label="Circle"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/></svg></div>
           <div class="tool" data-tool="triangle" title="Triangle" aria-label="Triangle"><svg viewBox="0 0 24 24"><path d="M12 5 L19 19 L5 19 Z"/></svg></div>
+          <div class="tool" data-tool="text" title="Text" aria-label="Text"><svg viewBox="0 0 24 24"><path d="M5 6h14M5 6V4M19 6V4M12 6v14M9 20h6"/></svg></div>
           <div class="tool" data-tool="erase" title="Erase a mark" aria-label="Erase"><svg viewBox="0 0 24 24"><path d="M7 21h10M5 15l6-9 8 5-5 8H8l-3-4z"/></svg></div>
         </div>
       </div>
@@ -355,6 +365,37 @@
       <div class="row">
         <button class="ctl" id="btnUndo">Undo mark</button>
         <button class="ctl" id="btnClear">Clear marks</button>
+      </div>
+    </div>
+
+    <!-- text -->
+    <div class="group textctl">
+      <h2>Text</h2>
+      <div class="row">
+        <textarea id="textInput" rows="2" placeholder="Type here, then pick the Text tool and click the canvas to place it"></textarea>
+      </div>
+      <div class="row">
+        <select class="ctl" id="fontFamily" aria-label="Font family">
+          <option value="sans">Sans</option><option value="serif">Serif</option><option value="mono">Mono</option>
+        </select>
+        <span class="hint">Size</span>
+        <input type="range" id="fontSize" min="10" max="140" value="32" aria-label="Font size">
+        <span class="hint" id="fontSizeVal">32</span>
+      </div>
+      <div class="row">
+        <div class="tstyle" id="tstyle">
+          <button class="tbtn" data-s="bold" title="Bold" style="font-weight:800">B</button>
+          <button class="tbtn" data-s="italic" title="Italic" style="font-style:italic">I</button>
+          <button class="tbtn" data-s="underline" title="Underline" style="text-decoration:underline">U</button>
+          <button class="tbtn" data-s="strike" title="Strikethrough" style="text-decoration:line-through">S</button>
+        </div>
+        <span class="hint">Opacity</span>
+        <input type="range" id="textOpacity" min="0" max="100" value="100" aria-label="Text opacity">
+        <span class="hint" id="textOpVal">100%</span>
+      </div>
+      <div class="row">
+        <span class="swlabel">Color</span>
+        <div class="swatches" id="textSwatches"></div>
       </div>
     </div>
 
@@ -419,7 +460,7 @@
 
 <!-- About dialog -->
 <dialog id="aboutDlg">
-  <div class="dhead"><h3>LIMELIGHT</h3><span class="ver">FI-100 &middot; v0.8.1</span><div class="spacer"></div><button class="linkbtn" id="aboutClose">CLOSE</button></div>
+  <div class="dhead"><h3>LIMELIGHT</h3><span class="ver">FI-100 &middot; v0.9.0</span><div class="spacer"></div><button class="linkbtn" id="aboutClose">CLOSE</button></div>
   <div class="dbody">
     <p><b>LIMELIGHT</b> is a from-disk screen recorder. It composites a screen share, camera overlays, image overlays, and freehand annotation into a single video, mixes in the microphone and system audio you choose, and writes a <code>.webm</code> you download. Limelight was the intense stage light that lit a performer for the whole house, so the name fits a tool for putting your screen in front of the world.</p>
     <p>Everything runs locally in the browser. No frames, audio, or recordings are uploaded anywhere. Files stay on this machine until you download and move them.</p>
@@ -428,7 +469,8 @@
     <p><b>Feedback:</b> report issues at <a href="https://greenshoegarage.com" target="_blank" rel="noopener">greenshoegarage.com</a>.</p>
     <p><label class="chk"><input type="checkbox" id="dbgToggle"> Debug logging to console</label></p>
     <p><b>Streaming to YouTube and Twitch</b> runs through <b>SEMAPHORE</b>, a small companion relay (<code>semaphore.py</code>) you run on the same machine. Those platforms ingest over RTMP, which a page at <code>file://</code> cannot speak, so the relay does the RTMP push with ffmpeg. LIMELIGHT sends the composited feed to the relay over <code>ws://localhost</code>. Your stream keys live only in the relay's local config, never in this page, so nothing secret is stored in the file. Recording still works with no relay and no network at all.</p>
-    <p class="hint">Known limitations in v0.8.1: Chromium-based browsers recommended (screen and camera capture from <code>file://</code> rely on the secure-context treatment Chromium gives local files). Output is WebM (Safari support is limited). Streaming needs SEMAPHORE plus ffmpeg installed; the relay transcodes to H.264/AAC, which adds a few seconds of latency. Single monitor/window per session. No PWA layer yet. Recordings are held in memory, so a very long take uses a lot of RAM.</p>
+    <p><b>Scene export/import</b> (top bar) saves every annotation (shapes, stickers, text), your image overlays (embedded in the file), and your tool settings to one JSON file you can carry to another computer. Live cameras are not saved, since they are hardware on this machine.</p>
+    <p class="hint">Known limitations in v0.9.0: Chromium-based browsers recommended (screen and camera capture from <code>file://</code> rely on the secure-context treatment Chromium gives local files). Output is WebM (Safari support is limited). Streaming needs SEMAPHORE plus ffmpeg installed; the relay transcodes to H.264/AAC, which adds a few seconds of latency. Single monitor/window per session. No PWA layer yet. Recordings are held in memory, so a very long take uses a lot of RAM.</p>
   </div>
 </dialog>
 
@@ -445,7 +487,7 @@
 "use strict";
 (function(){
   // ---- version ----
-  var VERSION = "0.8.1";
+  var VERSION = "0.9.0";
 
   // ---- debug logging behind an in-app toggle ----
   var DEBUG = false;
@@ -470,6 +512,7 @@
   var fillColor = null;             // null = no fill (outline only)
   var fillA = 0.35;                 // fill opacity 0..1
   var stickerId = "thumbsup";       // selected sticker for the sticker tool
+  var textStyle = { font:"sans", size:32, bold:false, italic:false, underline:false, strike:false, color:"#ffd24a", opacity:1 };
   var lineW = 5;
   var rafId = null;
   var recorder = null, chunks = [], recording = false, paused = false;
@@ -575,9 +618,27 @@
     } else if(s.type==="sticker"){
       var sz=Math.min(s.w2,s.h2);
       paintSticker(ctx, s.sticker, s.x+(s.w2-sz)/2, s.y+(s.h2-sz)/2, sz);
+    } else if(s.type==="text"){
+      ctx.globalAlpha = s.opacity==null?1:s.opacity;
+      ctx.fillStyle = s.color; ctx.textAlign="left"; ctx.textBaseline="top"; ctx.font=fontOf(s);
+      var lines=(s.text||"").split("\n"), lh=s.size*1.28;
+      for(var ti=0;ti<lines.length;ti++){
+        var yy=s.y+ti*lh; ctx.fillText(lines[ti], s.x, yy);
+        if(s.underline||s.strike){
+          var tw=ctx.measureText(lines[ti]).width; ctx.strokeStyle=s.color; ctx.lineWidth=Math.max(1,s.size*0.06);
+          if(s.underline){ ctx.beginPath(); ctx.moveTo(s.x,yy+s.size*1.06); ctx.lineTo(s.x+tw,yy+s.size*1.06); ctx.stroke(); }
+          if(s.strike){ ctx.beginPath(); ctx.moveTo(s.x,yy+s.size*0.6); ctx.lineTo(s.x+tw,yy+s.size*0.6); ctx.stroke(); }
+        }
+      }
     }
     ctx.restore();
   }
+  function fontStack(f){
+    if(f==="serif") return "Georgia,'Times New Roman',serif";
+    if(f==="mono") return "ui-monospace,Menlo,Consolas,'Liberation Mono',monospace";
+    return "system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
+  }
+  function fontOf(s){ return (s.italic?"italic ":"")+(s.bold?"700 ":"400 ")+s.size+"px "+fontStack(s.font); }
 
   // ---- sticker icons (hand-built vector, drawn in a 100x100 space) ----
   function rr(c,x,y,w,h,r){ c.beginPath(); c.moveTo(x+r,y); c.arcTo(x+w,y,x+w,y+h,r); c.arcTo(x+w,y+h,x,y+h,r); c.arcTo(x,y+h,x,y,r); c.arcTo(x,y,x+w,y,r); c.closePath(); }
@@ -778,6 +839,11 @@
   function chromeVisible(){ return !(recording || streaming); }
   function bboxOf(s){
     if(isRectGeom(s)) return {x:s.x,y:s.y,w:s.w2,h:s.h2};
+    if(s.type==="text"){
+      ctx.save(); ctx.font=fontOf(s); var L=(s.text||"").split("\n"), w=0;
+      for(var i=0;i<L.length;i++){ w=Math.max(w, ctx.measureText(L[i]).width); }
+      ctx.restore(); var lh=s.size*1.28; return {x:s.x,y:s.y,w:Math.max(6,w),h:Math.max(lh,L.length*lh)};
+    }
     if(s.type==="arrow"){ var x=Math.min(s.x1,s.x2),y=Math.min(s.y1,s.y2); return {x:x,y:y,w:Math.abs(s.x2-s.x1),h:Math.abs(s.y2-s.y1)}; }
     var minx=1e9,miny=1e9,maxx=-1e9,maxy=-1e9;
     for(var i=0;i<s.pts.length;i++){ var p=s.pts[i]; if(p.x<minx)minx=p.x; if(p.y<miny)miny=p.y; if(p.x>maxx)maxx=p.x; if(p.y>maxy)maxy=p.y; }
@@ -794,12 +860,13 @@
     return null;
   }
   function moveStroke(s,dx,dy){
-    if(isRectGeom(s)){ s.x+=dx; s.y+=dy; }
+    if(isRectGeom(s) || s.type==="text"){ s.x+=dx; s.y+=dy; }
     else if(s.type==="arrow"){ s.x1+=dx; s.x2+=dx; s.y1+=dy; s.y2+=dy; }
     else { for(var i=0;i<s.pts.length;i++){ s.pts[i].x+=dx; s.pts[i].y+=dy; } }
   }
   function snapshotGeom(s){
     if(isRectGeom(s)) return {x:s.x,y:s.y,w2:s.w2,h2:s.h2};
+    if(s.type==="text") return {x:s.x,y:s.y,size:s.size};
     if(s.type==="arrow") return {x1:s.x1,y1:s.y1,x2:s.x2,y2:s.y2};
     return {pts:s.pts.map(function(p){return {x:p.x,y:p.y};})};
   }
@@ -808,6 +875,7 @@
     var sx=oldB.w?newB.w/oldB.w:1, sy=oldB.h?newB.h/oldB.h:1;
     function m(px,py){ return {x:newB.x+(px-oldB.x)*sx, y:newB.y+(py-oldB.y)*sy}; }
     if(isRectGeom(s)){ var a=m(snap.x,snap.y), b=m(snap.x+snap.w2,snap.y+snap.h2); s.x=Math.min(a.x,b.x); s.y=Math.min(a.y,b.y); s.w2=Math.abs(b.x-a.x); s.h2=Math.abs(b.y-a.y); }
+    else if(s.type==="text"){ var p=m(snap.x,snap.y); s.x=p.x; s.y=p.y; var r=oldB.h?newB.h/oldB.h:1; s.size=Math.max(6, snap.size*r); }
     else if(s.type==="arrow"){ var a2=m(snap.x1,snap.y1), b2=m(snap.x2,snap.y2); s.x1=a2.x; s.y1=a2.y; s.x2=b2.x; s.y2=b2.y; }
     else { s.pts=snap.pts.map(function(p){ return m(p.x,p.y); }); }
   }
@@ -835,6 +903,17 @@
   }
   function syncControlsToSelection(){
     if(!selected) return;
+    if(selected.type==="text"){
+      $("textInput").value=selected.text||"";
+      $("fontFamily").value=selected.font;
+      $("fontSize").value=selected.size; $("fontSizeVal").textContent=selected.size;
+      var op=Math.round((selected.opacity==null?1:selected.opacity)*100); $("textOpacity").value=op; $("textOpVal").textContent=op+"%";
+      ["bold","italic","underline","strike"].forEach(function(k){ var b=document.querySelector('.tbtn[data-s="'+k+'"]'); if(b) b.classList.toggle("on", !!selected[k]); });
+      hiliteSwatch($("textSwatches"), selected.color);
+      textStyle.font=selected.font; textStyle.size=selected.size; textStyle.color=selected.color; textStyle.opacity=(selected.opacity==null?1:selected.opacity);
+      textStyle.bold=!!selected.bold; textStyle.italic=!!selected.italic; textStyle.underline=!!selected.underline; textStyle.strike=!!selected.strike;
+      return;
+    }
     if(selected.w!=null){ lineW=selected.w; $("width").value=selected.w; }
     if(selected.color){ color=selected.color; hiliteSwatch($("swatches"), selected.color); }
     if(isShape(selected)){
@@ -867,6 +946,7 @@
     if(tool==="pen"||tool==="marker"){ current={type:tool,color:color,w:lineW,pts:[pt]}; }
     else if(tool==="box"||tool==="circle"||tool==="triangle"){ current={type:tool,color:color,fill:fillColor,fillA:fillA,w:lineW,x:pt.x,y:pt.y,w2:0,h2:0,_ox:pt.x,_oy:pt.y}; }
     else if(tool==="sticker"){ current={type:"sticker",sticker:stickerId,x:pt.x,y:pt.y,w2:0,h2:0,_ox:pt.x,_oy:pt.y}; }
+    else if(tool==="text"){ placeText(pt); return; }
     else if(tool==="arrow"){ current={type:"arrow",color:color,w:lineW,x1:pt.x,y1:pt.y,x2:pt.x,y2:pt.y}; }
   });
 
@@ -920,7 +1000,7 @@
       for(var i=0;i<s.pts.length-1;i++){ if(distToSeg(pt, s.pts[i], s.pts[i+1])<=pad) return true; }
       return false;
     }
-    if(s.type==="box"||s.type==="circle"||s.type==="triangle"||s.type==="sticker"){ return pt.x>=s.x-pad&&pt.x<=s.x+s.w2+pad&&pt.y>=s.y-pad&&pt.y<=s.y+s.h2+pad; }
+    if(isRectGeom(s) || s.type==="text"){ var b=bboxOf(s); return pt.x>=b.x-pad&&pt.x<=b.x+b.w+pad&&pt.y>=b.y-pad&&pt.y<=b.y+b.h+pad; }
     if(s.type==="arrow"){ return distToSeg(pt,{x:s.x1,y:s.y1},{x:s.x2,y:s.y2})<=pad; }
     return false;
   }
@@ -939,6 +1019,7 @@
     clearStickerSel();
     [].forEach.call(document.querySelectorAll(".tool"),function(el){ el.classList.toggle("sel", el===t); });
     stage.style.cursor = (tool==="move")? "default" : (tool==="erase"? "cell":"crosshair");
+    if(tool==="text") setTimeout(function(){ $("textInput").focus(); },0);
   });
 
   (function buildStrokeSwatches(){
@@ -987,6 +1068,30 @@
     });
   })();
   function clearStickerSel(){ [].forEach.call(document.querySelectorAll("#stickers .stk"),function(e){ e.classList.remove("sel"); }); }
+
+  // ---- text ----
+  function placeText(pt){
+    var val=$("textInput").value || "Text";
+    var s={ type:"text", text:val, x:pt.x, y:pt.y,
+      font:textStyle.font, size:textStyle.size, bold:textStyle.bold, italic:textStyle.italic,
+      underline:textStyle.underline, strike:textStyle.strike, color:textStyle.color, opacity:textStyle.opacity };
+    strokes.push(s); selected=s; syncControlsToSelection();
+  }
+  $("textInput").addEventListener("input", function(){ if(selected&&selected.type==="text") selected.text=this.value; });
+  $("fontFamily").addEventListener("change", function(){ textStyle.font=this.value; if(selected&&selected.type==="text") selected.font=this.value; });
+  $("fontSize").addEventListener("input", function(){ textStyle.size=+this.value; $("fontSizeVal").textContent=this.value; if(selected&&selected.type==="text") selected.size=+this.value; });
+  $("textOpacity").addEventListener("input", function(){ textStyle.opacity=+this.value/100; $("textOpVal").textContent=this.value+"%"; if(selected&&selected.type==="text") selected.opacity=+this.value/100; });
+  $("tstyle").addEventListener("click", function(ev){ var b=ev.target.closest(".tbtn"); if(!b) return; var k=b.getAttribute("data-s");
+    textStyle[k]=!textStyle[k]; b.classList.toggle("on", textStyle[k]); if(selected&&selected.type==="text") selected[k]=textStyle[k]; });
+  (function buildTextSwatches(){
+    var box=$("textSwatches");
+    COLORS.forEach(function(c,i){
+      var sw=document.createElement("button"); sw.className="sw"+(i===0?" sel":""); sw.style.background=c; sw.dataset.col=c;
+      sw.setAttribute("aria-label","Font color "+c);
+      sw.addEventListener("click",function(){ textStyle.color=c; hiliteSwatch(box,c); if(selected&&selected.type==="text") selected.color=c; });
+      box.appendChild(sw);
+    });
+  })();
   $("btnUndo").addEventListener("click", function(){ var s=strokes.pop(); if(s&&s===selected) clearSelection(); });
   $("btnClear").addEventListener("click", function(){ strokes=[]; clearSelection(); });
 
@@ -1355,6 +1460,70 @@
   }
 
   // =========================================================
+  // Scene export / import: all annotations (shapes, stickers, text),
+  // image overlays (embedded as data URLs), and tool settings. Portable
+  // between computers as a single JSON file. Live cameras are not saved.
+  // =========================================================
+  function cleanStroke(s){ var o={}; for(var k in s){ if(s.hasOwnProperty(k) && k.charAt(0)!=="_") o[k]=s[k]; } if(o.pts) o.pts=o.pts.map(function(p){return {x:p.x,y:p.y};}); return o; }
+  function imgToDataUrl(img){ try{ var c=document.createElement("canvas"); c.width=img.naturalWidth||img.width; c.height=img.naturalHeight||img.height; c.getContext("2d").drawImage(img,0,0); return c.toDataURL("image/png"); }catch(e){ log("img export failed",e); return null; } }
+  function downloadBlob(blob,name){ var u=URL.createObjectURL(blob); var a=document.createElement("a"); a.href=u; a.download=name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(function(){ URL.revokeObjectURL(u); },1000); }
+  function exportScene(){
+    var images=overlays.filter(function(o){return o.kind==="img";})
+      .map(function(o){ return { name:o.name, dataUrl:imgToDataUrl(o.el), x:o.x,y:o.y,w:o.w,h:o.h, ratio:o.ratio, visible:o.visible }; })
+      .filter(function(im){ return im.dataUrl; });
+    var data={ app:"LIMELIGHT", kind:"limelight-scene", version:1, stageW:stage.width, stageH:stage.height,
+      defaults:{ color:color, fillColor:fillColor, fillA:fillA, lineW:lineW, stickerId:stickerId, textStyle:JSON.parse(JSON.stringify(textStyle)) },
+      strokes: strokes.map(cleanStroke), images: images };
+    downloadBlob(new Blob([JSON.stringify(data,null,2)],{type:"application/json"}), "limelight-scene-"+stamp()+".json");
+    log("scene exported", data.strokes.length, "marks,", images.length, "images");
+  }
+  function importScene(file){
+    var r=new FileReader();
+    r.onload=function(){
+      var data; try{ data=JSON.parse(r.result); }catch(e){ alert("That is not a valid LIMELIGHT scene file."); return; }
+      if(!data || data.kind!=="limelight-scene"){ alert("That file is not a LIMELIGHT scene."); return; }
+      var hasWork = strokes.length || overlays.some(function(o){return o.kind==="img";});
+      if(hasWork && !confirm("Replace the current annotations and images with the imported scene?")) return;
+      applyScene(data);
+    };
+    r.readAsText(file);
+  }
+  function applyScene(data){
+    var sx=data.stageW?stage.width/data.stageW:1, sy=data.stageH?stage.height/data.stageH:1, sMin=Math.min(sx,sy);
+    clearSelection();
+    strokes=(data.strokes||[]).map(function(s){ var c=JSON.parse(JSON.stringify(s)); scaleStroke(c,sx,sy); if(c.type==="text"&&c.size) c.size=Math.max(6,c.size*sMin); return c; });
+    overlays=overlays.filter(function(o){ return o.kind==="cam"; }); // keep live cameras, drop old images
+    (data.images||[]).forEach(function(im){
+      if(!im.dataUrl) return;
+      var img=new Image();
+      img.onload=function(){ overlays.push({ id:++ovSeq, kind:"img", name:im.name||"image", el:img, url:null,
+        ratio:im.ratio||(img.naturalWidth/img.naturalHeight)||1,
+        x:(im.x||0)*sx, y:(im.y||0)*sy, w:(im.w||100)*sx, h:(im.h||100)*sy, visible:im.visible!==false });
+        renderChips(); refreshEmpty(); startLoop(); };
+      img.src=im.dataUrl;
+    });
+    if(data.defaults) applyDefaults(data.defaults);
+    renderChips(); refreshEmpty(); startLoop();
+    log("scene imported", strokes.length, "marks");
+  }
+  function applyDefaults(d){
+    if(d.color){ color=d.color; hiliteSwatch($("swatches"), color); }
+    if(d.fillColor!==undefined){ fillColor=d.fillColor; hiliteFill(fillColor); }
+    if(d.fillA!=null){ fillA=d.fillA; $("fillOpacity").value=Math.round(fillA*100); $("fillOpVal").textContent=Math.round(fillA*100)+"%"; }
+    if(d.lineW!=null){ lineW=d.lineW; $("width").value=lineW; }
+    if(d.stickerId) stickerId=d.stickerId;
+    if(d.textStyle){ for(var k in d.textStyle){ if(d.textStyle.hasOwnProperty(k)) textStyle[k]=d.textStyle[k]; }
+      $("fontFamily").value=textStyle.font; $("fontSize").value=textStyle.size; $("fontSizeVal").textContent=textStyle.size;
+      $("textOpacity").value=Math.round(textStyle.opacity*100); $("textOpVal").textContent=Math.round(textStyle.opacity*100)+"%";
+      ["bold","italic","underline","strike"].forEach(function(kk){ var b=document.querySelector('.tbtn[data-s="'+kk+'"]'); if(b) b.classList.toggle("on", !!textStyle[kk]); });
+      hiliteSwatch($("textSwatches"), textStyle.color);
+    }
+  }
+  $("btnExport").addEventListener("click", exportScene);
+  $("btnImport").addEventListener("click", function(){ $("sceneFile").click(); });
+  $("sceneFile").addEventListener("change", function(){ var f=this.files&&this.files[0]; this.value=""; if(f) importScene(f); });
+
+  // =========================================================
   // Self-test
   // =========================================================
   function runTests(){
@@ -1397,6 +1566,9 @@
     t("annotation resize (double bbox)", (function(){ var s={type:"box",w:3,x:0,y:0,w2:20,h2:20}; applyScale(s, snapshotGeom(s), bboxOf(s), {x:0,y:0,w:40,h:40}); return Math.round(s.w2)===40; })());
     t("sticker geometry (move + bbox)", (function(){ var s={type:"sticker",sticker:"star",x:0,y:0,w2:80,h2:80}; moveStroke(s,10,0); return bboxOf(s).x===10 && bboxOf(s).w===80; })());
     t("sticker is selectable (hit-test)", strokeHit({type:"sticker",sticker:"star",x:0,y:0,w2:80,h2:80},{x:40,y:40}));
+    t("text move", (function(){ var s={type:"text",text:"hi",x:10,y:10,size:20,color:"#fff"}; moveStroke(s,5,5); return s.x===15&&s.y===15; })());
+    t("text bbox measures width", (function(){ var b=bboxOf({type:"text",text:"hello",x:0,y:0,size:40,color:"#fff"}); return b.w>0 && b.h>=40; })());
+    t("scene stroke round-trips (drops _keys)", (function(){ var c=cleanStroke({type:"box",color:"#fff",w:3,x:1,y:2,w2:3,h2:4,_ox:1,_oy:2}); var j=JSON.parse(JSON.stringify(c)); return j.x===1 && j._ox===undefined; })());
 
     $("testSummary").innerHTML = fail===0
       ? "<span style='color:var(--ok)'>"+pass+"/"+(pass+fail)+" passed. Instrument nominal.</span>"
