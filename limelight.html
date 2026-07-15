@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- LIMELIGHT :: limelight.html :: v0.8.0 -->
+<!-- LIMELIGHT :: limelight.html :: v0.8.1 -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -284,7 +284,7 @@
       <h1>LIMELIGHT</h1>
       <span class="fi-tag">FI-100</span>
     </div>
-    <span class="ver" id="verTag">v0.8.0</span>
+    <span class="ver" id="verTag">v0.8.1</span>
     <div class="spacer"></div>
     <button class="linkbtn" id="btnTest">SELF-TEST</button>
     <button class="linkbtn" id="btnAbout">ABOUT</button>
@@ -419,7 +419,7 @@
 
 <!-- About dialog -->
 <dialog id="aboutDlg">
-  <div class="dhead"><h3>LIMELIGHT</h3><span class="ver">FI-100 &middot; v0.8.0</span><div class="spacer"></div><button class="linkbtn" id="aboutClose">CLOSE</button></div>
+  <div class="dhead"><h3>LIMELIGHT</h3><span class="ver">FI-100 &middot; v0.8.1</span><div class="spacer"></div><button class="linkbtn" id="aboutClose">CLOSE</button></div>
   <div class="dbody">
     <p><b>LIMELIGHT</b> is a from-disk screen recorder. It composites a screen share, camera overlays, image overlays, and freehand annotation into a single video, mixes in the microphone and system audio you choose, and writes a <code>.webm</code> you download. Limelight was the intense stage light that lit a performer for the whole house, so the name fits a tool for putting your screen in front of the world.</p>
     <p>Everything runs locally in the browser. No frames, audio, or recordings are uploaded anywhere. Files stay on this machine until you download and move them.</p>
@@ -428,7 +428,7 @@
     <p><b>Feedback:</b> report issues at <a href="https://greenshoegarage.com" target="_blank" rel="noopener">greenshoegarage.com</a>.</p>
     <p><label class="chk"><input type="checkbox" id="dbgToggle"> Debug logging to console</label></p>
     <p><b>Streaming to YouTube and Twitch</b> runs through <b>SEMAPHORE</b>, a small companion relay (<code>semaphore.py</code>) you run on the same machine. Those platforms ingest over RTMP, which a page at <code>file://</code> cannot speak, so the relay does the RTMP push with ffmpeg. LIMELIGHT sends the composited feed to the relay over <code>ws://localhost</code>. Your stream keys live only in the relay's local config, never in this page, so nothing secret is stored in the file. Recording still works with no relay and no network at all.</p>
-    <p class="hint">Known limitations in v0.8.0: Chromium-based browsers recommended (screen and camera capture from <code>file://</code> rely on the secure-context treatment Chromium gives local files). Output is WebM (Safari support is limited). Streaming needs SEMAPHORE plus ffmpeg installed; the relay transcodes to H.264/AAC, which adds a few seconds of latency. Single monitor/window per session. No PWA layer yet. Recordings are held in memory, so a very long take uses a lot of RAM.</p>
+    <p class="hint">Known limitations in v0.8.1: Chromium-based browsers recommended (screen and camera capture from <code>file://</code> rely on the secure-context treatment Chromium gives local files). Output is WebM (Safari support is limited). Streaming needs SEMAPHORE plus ffmpeg installed; the relay transcodes to H.264/AAC, which adds a few seconds of latency. Single monitor/window per session. No PWA layer yet. Recordings are held in memory, so a very long take uses a lot of RAM.</p>
   </div>
 </dialog>
 
@@ -445,7 +445,7 @@
 "use strict";
 (function(){
   // ---- version ----
-  var VERSION = "0.8.0";
+  var VERSION = "0.8.1";
 
   // ---- debug logging behind an in-app toggle ----
   var DEBUG = false;
@@ -914,7 +914,7 @@
     for(var i=strokes.length-1;i>=0;i--){ if(strokeHit(strokes[i],pt)){ if(strokes[i]===selected) clearSelection(); strokes.splice(i,1); return; } }
   }
   function strokeHit(s,pt){
-    var pad=Math.max(10,s.w*1.5);
+    var pad=Math.max(10,(s.w||0)*1.5);
     if(s.type==="pen"||s.type==="marker"){
       if(s.pts.length===1) return Math.hypot(s.pts[0].x-pt.x,s.pts[0].y-pt.y)<=pad;
       for(var i=0;i<s.pts.length-1;i++){ if(distToSeg(pt, s.pts[i], s.pts[i+1])<=pad) return true; }
@@ -1396,6 +1396,7 @@
     t("annotation move", (function(){ var s={type:"box",w:3,x:10,y:10,w2:20,h2:20}; moveStroke(s,5,7); return s.x===15&&s.y===17; })());
     t("annotation resize (double bbox)", (function(){ var s={type:"box",w:3,x:0,y:0,w2:20,h2:20}; applyScale(s, snapshotGeom(s), bboxOf(s), {x:0,y:0,w:40,h:40}); return Math.round(s.w2)===40; })());
     t("sticker geometry (move + bbox)", (function(){ var s={type:"sticker",sticker:"star",x:0,y:0,w2:80,h2:80}; moveStroke(s,10,0); return bboxOf(s).x===10 && bboxOf(s).w===80; })());
+    t("sticker is selectable (hit-test)", strokeHit({type:"sticker",sticker:"star",x:0,y:0,w2:80,h2:80},{x:40,y:40}));
 
     $("testSummary").innerHTML = fail===0
       ? "<span style='color:var(--ok)'>"+pass+"/"+(pass+fail)+" passed. Instrument nominal.</span>"
