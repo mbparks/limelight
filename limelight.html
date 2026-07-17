@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- LIMELIGHT :: limelight.html :: v0.9.1 -->
+<!-- LIMELIGHT :: limelight.html :: v0.10.0 -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -290,7 +290,7 @@
       <h1>LIMELIGHT</h1>
       <span class="fi-tag">FI-100</span>
     </div>
-    <span class="ver" id="verTag">v0.9.1</span>
+    <span class="ver" id="verTag">v0.10.0</span>
     <div class="spacer"></div>
     <button class="linkbtn" id="btnExport">EXPORT</button>
     <button class="linkbtn" id="btnImport">IMPORT</button>
@@ -345,6 +345,7 @@
           <div class="tool" data-tool="triangle" title="Triangle" aria-label="Triangle"><svg viewBox="0 0 24 24"><path d="M12 5 L19 19 L5 19 Z"/></svg></div>
           <div class="tool" data-tool="text" title="Text" aria-label="Text"><svg viewBox="0 0 24 24"><path d="M5 6h14M5 6V4M19 6V4M12 6v14M9 20h6"/></svg></div>
           <div class="tool" data-tool="erase" title="Erase a mark" aria-label="Erase"><svg viewBox="0 0 24 24"><path d="M7 21h10M5 15l6-9 8 5-5 8H8l-3-4z"/></svg></div>
+          <div class="tool" data-tool="laser" title="Laser pointer (shows in recording)" aria-label="Laser pointer"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3" fill="currentColor" stroke="none"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5.6 5.6l2 2M16.4 16.4l2 2M18.4 5.6l-2 2M7.6 16.4l-2 2"/></svg></div>
         </div>
       </div>
       <div class="row">
@@ -460,7 +461,7 @@
 
 <!-- About dialog -->
 <dialog id="aboutDlg">
-  <div class="dhead"><h3>LIMELIGHT</h3><span class="ver">FI-100 &middot; v0.9.1</span><div class="spacer"></div><button class="linkbtn" id="aboutClose">CLOSE</button></div>
+  <div class="dhead"><h3>LIMELIGHT</h3><span class="ver">FI-100 &middot; v0.10.0</span><div class="spacer"></div><button class="linkbtn" id="aboutClose">CLOSE</button></div>
   <div class="dbody">
     <p><b>LIMELIGHT</b> is a from-disk screen recorder. It composites a screen share, camera overlays, image overlays, and freehand annotation into a single video, mixes in the microphone and system audio you choose, and writes a <code>.webm</code> you download. Limelight was the intense stage light that lit a performer for the whole house, so the name fits a tool for putting your screen in front of the world.</p>
     <p>Everything runs locally in the browser. No frames, audio, or recordings are uploaded anywhere. Files stay on this machine until you download and move them.</p>
@@ -470,7 +471,7 @@
     <p><label class="chk"><input type="checkbox" id="dbgToggle"> Debug logging to console</label></p>
     <p><b>Streaming to YouTube and Twitch</b> runs through <b>SEMAPHORE</b>, a small companion relay (<code>semaphore.py</code>) you run on the same machine. Those platforms ingest over RTMP, which a page at <code>file://</code> cannot speak, so the relay does the RTMP push with ffmpeg. LIMELIGHT sends the composited feed to the relay over <code>ws://localhost</code>. Your stream keys live only in the relay's local config, never in this page, so nothing secret is stored in the file. Recording still works with no relay and no network at all.</p>
     <p><b>Scene export/import</b> (top bar) saves every annotation (shapes, stickers, text), your image overlays (embedded in the file), and your tool settings to one JSON file you can carry to another computer. Live cameras are not saved, since they are hardware on this machine.</p>
-    <p class="hint">Known limitations in v0.9.1: Chromium-based browsers recommended (screen and camera capture from <code>file://</code> rely on the secure-context treatment Chromium gives local files). Output is WebM (Safari support is limited). Streaming needs SEMAPHORE plus ffmpeg installed; the relay transcodes to H.264/AAC, which adds a few seconds of latency. Single monitor/window per session. No PWA layer yet. Recordings are held in memory, so a very long take uses a lot of RAM.</p>
+    <p class="hint">Known limitations in v0.10.0: Chromium-based browsers recommended (screen and camera capture from <code>file://</code> rely on the secure-context treatment Chromium gives local files). Output is WebM (Safari support is limited). Streaming needs SEMAPHORE plus ffmpeg installed; the relay transcodes to H.264/AAC, which adds a few seconds of latency. Single monitor/window per session. No PWA layer yet. Recordings are held in memory, so a very long take uses a lot of RAM.</p>
   </div>
 </dialog>
 
@@ -487,7 +488,7 @@
 "use strict";
 (function(){
   // ---- version ----
-  var VERSION = "0.9.1";
+  var VERSION = "0.10.0";
 
   // ---- debug logging behind an in-app toggle ----
   var DEBUG = false;
@@ -531,6 +532,8 @@
   var erasing = false;              // true while dragging the eraser
   var selected = null;              // currently selected annotation (Move tool)
   var annDrag = null;               // { mode:'move'|'resize', ... } while dragging a mark
+  var laser = { on:false, pos:null, trail:[] };  // live laser pointer (drawn into the recording)
+  var LASER_TRAIL_MS = 240;
 
   var COLORS = ["#ffd24a","#e5484d","#57c7be","#7db4ff","#8ce07a","#ffffff","#12161d"];
 
@@ -570,6 +573,7 @@
     for(var s=0;s<strokes.length;s++) drawStroke(strokes[s]);
     if(current) drawStroke(current);
     if(tool==="move" && chromeVisible()) drawSelectionChrome();
+    drawLaser();
     rafId = requestAnimationFrame(loop);
   }
 
@@ -891,6 +895,27 @@
     for(var i=0;i<4;i++){ ctx.fillRect(c[i][0]-HANDLE/2, c[i][1]-HANDLE/2, HANDLE, HANDLE); }
     ctx.restore();
   }
+  function drawLaser(){
+    if(tool!=="laser" || !laser.on || !laser.pos) return;
+    var now=performance.now();
+    while(laser.trail.length && now-laser.trail[0].t>LASER_TRAIL_MS) laser.trail.shift();
+    var size=Math.max(14, stage.width*0.013);
+    ctx.save();
+    // fading comet trail
+    ctx.lineCap="round";
+    for(var i=1;i<laser.trail.length;i++){
+      var a=laser.trail[i-1], b=laser.trail[i], age=(now-b.t)/LASER_TRAIL_MS, al=Math.max(0,1-age)*0.45;
+      ctx.strokeStyle="rgba(255,45,45,"+al+")"; ctx.lineWidth=size*0.5*(1-age)+1;
+      ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke();
+    }
+    var p=laser.pos;
+    var g=ctx.createRadialGradient(p.x,p.y,0,p.x,p.y,size);
+    g.addColorStop(0,"rgba(255,90,90,0.95)"); g.addColorStop(0.4,"rgba(255,25,25,0.55)"); g.addColorStop(1,"rgba(255,0,0,0)");
+    ctx.fillStyle=g; ctx.beginPath(); ctx.arc(p.x,p.y,size,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle="rgba(220,15,15,0.98)"; ctx.beginPath(); ctx.arc(p.x,p.y,size*0.24,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle="rgba(255,235,235,0.98)"; ctx.beginPath(); ctx.arc(p.x,p.y,size*0.1,0,Math.PI*2); ctx.fill();
+    ctx.restore();
+  }
   function updateMoveCursor(pt){
     if(selected){ var h=handleAt(selected,pt); if(h>=0){ stage.style.cursor=(h===0||h===2)?"nwse-resize":"nesw-resize"; return; } }
     stage.style.cursor = (hitAnnotation(pt)||hitOverlay(pt)) ? "move" : "default";
@@ -952,6 +977,7 @@
 
   stage.addEventListener("pointermove", function(ev){
     var pt=toStage(ev);
+    if(tool==="laser"){ laser.on=true; laser.pos=pt; laser.trail.push({x:pt.x,y:pt.y,t:performance.now()}); if(laser.trail.length>80) laser.trail.shift(); return; }
     if(drag){
       var o=drag.ov;
       if(drag.mode==="move"){ o.x=pt.x-drag.dx; o.y=pt.y-drag.dy; }
@@ -989,6 +1015,8 @@
   }
   stage.addEventListener("pointerup", endPointer);
   stage.addEventListener("pointercancel", endPointer);
+  stage.addEventListener("pointerenter", function(ev){ if(tool==="laser"){ laser.on=true; laser.pos=toStage(ev); } });
+  stage.addEventListener("pointerleave", function(){ laser.on=false; laser.trail=[]; });
 
   function eraseAt(pt){
     for(var i=strokes.length-1;i>=0;i--){ if(strokeHit(strokes[i],pt)){ if(strokes[i]===selected) clearSelection(); strokes.splice(i,1); return; } }
@@ -1018,7 +1046,7 @@
     if(tool!=="move") clearSelection();
     clearStickerSel();
     [].forEach.call(document.querySelectorAll(".tool"),function(el){ el.classList.toggle("sel", el===t); });
-    stage.style.cursor = (tool==="move")? "default" : (tool==="erase"? "cell":"crosshair");
+    stage.style.cursor = (tool==="move")? "default" : (tool==="erase"? "cell" : (tool==="laser"? "none":"crosshair"));
     if(tool==="text") setTimeout(function(){ $("textInput").focus(); },0);
   });
 
@@ -1569,6 +1597,7 @@
     t("text move", (function(){ var s={type:"text",text:"hi",x:10,y:10,size:20,color:"#fff"}; moveStroke(s,5,5); return s.x===15&&s.y===15; })());
     t("text bbox measures width", (function(){ var b=bboxOf({type:"text",text:"hello",x:0,y:0,size:40,color:"#fff"}); return b.w>0 && b.h>=40; })());
     t("scene stroke round-trips (drops _keys)", (function(){ var c=cleanStroke({type:"box",color:"#fff",w:3,x:1,y:2,w2:3,h2:4,_ox:1,_oy:2}); var j=JSON.parse(JSON.stringify(c)); return j.x===1 && j._ox===undefined; })());
+    t("laser pointer available", typeof drawLaser==="function");
 
     $("testSummary").innerHTML = fail===0
       ? "<span style='color:var(--ok)'>"+pass+"/"+(pass+fail)+" passed. Instrument nominal.</span>"
