@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# SEMAPHORE :: semaphore.py :: v0.2.1
+# SEMAPHORE :: semaphore.py :: v0.2.2
 # Local RTMP relay companion for LIMELIGHT (FI-100).
 #
 # LIMELIGHT is a from-disk web page and cannot speak RTMP, so this small helper
@@ -99,7 +99,7 @@ def ffmpeg_cmd(cfg, targets):
     vb = cfg.get("video_bitrate", "4500k")
     ab = cfg.get("audio_bitrate", "160k")
     cmd = [
-        "ffmpeg", "-hide_banner", "-loglevel", "warning",
+        "ffmpeg", "-hide_banner", "-nostats", "-loglevel", cfg.get("ffmpeg_loglevel", "info"),
         "-fflags", "+genpts",
         "-i", "pipe:0",
         "-c:v", "libx264", "-preset", "veryfast", "-tune", "zerolatency",
@@ -116,9 +116,9 @@ def ffmpeg_cmd(cfg, targets):
         "-af", "aresample=async=1",
     ]
     if len(targets) == 1:
-        cmd += ["-f", "flv", targets[0][1]]
+        cmd += ["-flvflags", "no_duration_filesize", "-f", "flv", targets[0][1]]
     else:
-        tee = "|".join("[f=flv]" + url for _, url in targets)
+        tee = "|".join("[f=flv:flvflags=no_duration_filesize]" + url for _, url in targets)
         cmd += ["-map", "0:v", "-map", "0:a", "-f", "tee", tee]
     return cmd
 
