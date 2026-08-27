@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# SEMAPHORE :: semaphore.py :: v0.1.0
+# SEMAPHORE :: semaphore.py :: v0.2.0
 # Local RTMP relay companion for LIMELIGHT (FI-100).
 #
 # LIMELIGHT is a from-disk web page and cannot speak RTMP, so this small helper
@@ -13,11 +13,13 @@
 # License: GPL-3.0
 
 import asyncio
+import collections
 import json
 import os
 import shutil
 import subprocess
 import sys
+import threading
 
 try:
     import websockets
@@ -113,6 +115,24 @@ def ffmpeg_cmd(cfg, targets):
     return cmd
 
 
+def redact(url):
+    # hide the stream key (the last path segment) when printing
+    return url.rsplit("/", 1)[0] + "/****" if "/" in url else url
+
+
+def pump_stderr(proc, buf):
+    # read ffmpeg's stderr on a background thread: echo it to the terminal
+    # and keep the last lines so we can report the real reason if it exits.
+    try:
+        for raw in iter(proc.stderr.readline, b""):
+            line = raw.decode("utf-8", "replace").rstrip()
+            if line:
+                print("  ffmpeg:", line)
+                buf.append(line)
+    except Exception:
+        pass
+
+
 async def stop_proc(proc):
     if not proc:
         return
@@ -139,6 +159,7 @@ async def handler(ws, *args):
           ", ".join(d["label"] for d in labels) or "(none, check keys)")
 
     proc = None
+    stderr_buf = None
     loop = asyncio.get_event_loop()
     try:
         async for message in ws:
@@ -148,8 +169,14 @@ async def handler(ws, *args):
                         # write off the event loop so a full pipe cannot stall it
                         await loop.run_in_executor(None, proc.stdin.write, message)
                     except (BrokenPipeError, OSError):
+                        try: proc.wait(timeout=1)
+                        except Exception: pass
+                        rc = proc.returncode
+                        tail = " | ".join(list(stderr_buf)[-8:]) if stderr_buf else ""
+                        detail = tail or "(no ffmpeg output captured; check this terminal)"
+                        print("ffmpeg exited, code", rc)
                         await ws.send(json.dumps({"type": "status", "state": "error",
-                                                  "message": "ffmpeg closed the pipe"}))
+                                                  "message": "ffmpeg exited (code %s). %s" % (rc, detail)}))
                         proc = None
                 continue
 
@@ -170,8 +197,12 @@ async def handler(ws, *args):
                     continue
                 names = ", ".join(l for l, _ in targets)
                 print("Starting relay to:", names)
+                for _l, _u in targets:
+                    print("   ->", _l, redact(_u))
                 try:
-                    proc = subprocess.Popen(ffmpeg_cmd(cfg, targets), stdin=subprocess.PIPE)
+                    stderr_buf = collections.deque(maxlen=30)
+                    proc = subprocess.Popen(ffmpeg_cmd(cfg, targets), stdin=subprocess.PIPE, stderr=subprocess.PIPE)
+                    threading.Thread(target=pump_stderr, args=(proc, stderr_buf), daemon=True).start()
                     await ws.send(json.dumps({"type": "status", "state": "live", "message": names}))
                 except Exception as e:
                     await ws.send(json.dumps({"type": "status", "state": "error", "message": str(e)}))
