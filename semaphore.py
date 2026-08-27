@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# SEMAPHORE :: semaphore.py :: v0.2.0
+# SEMAPHORE :: semaphore.py :: v0.2.1
 # Local RTMP relay companion for LIMELIGHT (FI-100).
 #
 # LIMELIGHT is a from-disk web page and cannot speak RTMP, so this small helper
@@ -103,9 +103,17 @@ def ffmpeg_cmd(cfg, targets):
         "-fflags", "+genpts",
         "-i", "pipe:0",
         "-c:v", "libx264", "-preset", "veryfast", "-tune", "zerolatency",
-        "-pix_fmt", "yuv420p", "-g", "60", "-r", "30",
+        "-pix_fmt", "yuv420p",
+        # Force constant 30fps output (duplicating frames when the browser
+        # delivers them slowly) and a keyframe every 2 seconds of TIME, not
+        # every N frames. YouTube drops the connection if keyframes fall more
+        # than ~4s apart, which happens with a variable-rate canvas capture.
+        "-r", "30", "-fps_mode", "cfr",
+        "-g", "60", "-keyint_min", "60", "-sc_threshold", "0",
+        "-force_key_frames", "expr:gte(t,n_forced*2)",
         "-b:v", vb, "-maxrate", vb, "-bufsize", double_rate(vb),
         "-c:a", "aac", "-b:a", ab, "-ar", "44100",
+        "-af", "aresample=async=1",
     ]
     if len(targets) == 1:
         cmd += ["-f", "flv", targets[0][1]]
