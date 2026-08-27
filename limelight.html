@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- LIMELIGHT :: limelight.html :: v0.10.3 -->
+<!-- LIMELIGHT :: limelight.html :: v0.10.4 -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -290,7 +290,7 @@
       <h1>LIMELIGHT</h1>
       <span class="fi-tag">FI-100</span>
     </div>
-    <span class="ver" id="verTag">v0.10.3</span>
+    <span class="ver" id="verTag">v0.10.4</span>
     <div class="spacer"></div>
     <button class="linkbtn" id="btnExport">EXPORT</button>
     <button class="linkbtn" id="btnImport">IMPORT</button>
@@ -461,7 +461,7 @@
 
 <!-- About dialog -->
 <dialog id="aboutDlg">
-  <div class="dhead"><h3>LIMELIGHT</h3><span class="ver">FI-100 &middot; v0.10.3</span><div class="spacer"></div><button class="linkbtn" id="aboutClose">CLOSE</button></div>
+  <div class="dhead"><h3>LIMELIGHT</h3><span class="ver">FI-100 &middot; v0.10.4</span><div class="spacer"></div><button class="linkbtn" id="aboutClose">CLOSE</button></div>
   <div class="dbody">
     <p><b>LIMELIGHT</b> is a from-disk screen recorder. It composites a screen share, camera overlays, image overlays, and freehand annotation into a single video, mixes in the microphone and system audio you choose, and writes a <code>.webm</code> you download. Limelight was the intense stage light that lit a performer for the whole house, so the name fits a tool for putting your screen in front of the world.</p>
     <p>Everything runs locally in the browser. No frames, audio, or recordings are uploaded anywhere. Files stay on this machine until you download and move them.</p>
@@ -471,7 +471,7 @@
     <p><label class="chk"><input type="checkbox" id="dbgToggle"> Debug logging to console</label></p>
     <p><b>Streaming to YouTube and Twitch</b> runs through <b>SEMAPHORE</b>, a small companion relay (<code>semaphore.py</code>) you run on the same machine. Those platforms ingest over RTMP, which a page at <code>file://</code> cannot speak, so the relay does the RTMP push with ffmpeg. LIMELIGHT sends the composited feed to the relay over <code>ws://localhost</code>. Your stream keys live only in the relay's local config, never in this page, so nothing secret is stored in the file. Recording still works with no relay and no network at all.</p>
     <p><b>Scene export/import</b> (top bar) saves every annotation (shapes, stickers, text), your image overlays (embedded in the file), and your tool settings to one JSON file you can carry to another computer. Live cameras are not saved, since they are hardware on this machine.</p>
-    <p class="hint">Known limitations in v0.10.3: Chromium-based browsers recommended (screen and camera capture from <code>file://</code> rely on the secure-context treatment Chromium gives local files). Output is WebM (Safari support is limited). Streaming needs SEMAPHORE plus ffmpeg installed; the relay transcodes to H.264/AAC, which adds a few seconds of latency. Single monitor/window per session. No PWA layer yet. Recordings are held in memory, so a very long take uses a lot of RAM.</p>
+    <p class="hint">Known limitations in v0.10.4: Chromium-based browsers recommended (screen and camera capture from <code>file://</code> rely on the secure-context treatment Chromium gives local files). Output is WebM (Safari support is limited). Streaming needs SEMAPHORE plus ffmpeg installed; the relay transcodes to H.264/AAC, which adds a few seconds of latency. Single monitor/window per session. No PWA layer yet. Recordings are held in memory, so a very long take uses a lot of RAM.</p>
   </div>
 </dialog>
 
@@ -488,7 +488,7 @@
 "use strict";
 (function(){
   // ---- version ----
-  var VERSION = "0.10.3";
+  var VERSION = "0.10.4";
 
   // ---- debug logging behind an in-app toggle ----
   var DEBUG = false;
@@ -525,6 +525,7 @@
 
   // shared A/V mix (one capture + one audio graph shared by record and stream)
   var mix = null, mixRef = 0;
+  var mixVideoTrack = null, lastCap = 0;  // manual canvas-capture track + last requestFrame time
   // streaming to SEMAPHORE relay
   var ws = null, streaming = false, streamRec = null, destinations = [], destSel = {};
 
@@ -575,6 +576,7 @@
     if(current) drawStroke(current);
     if(tool==="move" && chromeVisible()) drawSelectionChrome();
     drawLaser();
+    if(mixVideoTrack){ var _n=performance.now(); if(_n-lastCap>=32){ lastCap=_n; try{ mixVideoTrack.requestFrame(); }catch(e){} } }
   }
   function loop(){ renderOnce(); rafId = requestAnimationFrame(loop); }
 
@@ -1163,9 +1165,21 @@
   async function acquireMix(){
     mixRef++;
     if(mix) return mix;
-    var cs=stage.captureStream(recFps);
+    // Manual-capture mode: we push frames from the render loop via requestFrame()
+    // so the frame rate to the relay stays steady even when the window is
+    // backgrounded (browsers throttle their own auto-capture). Fall back to
+    // timed auto-capture if requestFrame is unavailable.
+    var cs, manual=false;
+    try{
+      cs=stage.captureStream(0);
+      var vt0=cs.getVideoTracks()[0];
+      if(vt0 && typeof vt0.requestFrame==="function"){ manual=true; }
+      else { try{ cs.getTracks().forEach(function(t){t.stop();}); }catch(e){} cs=stage.captureStream(recFps); }
+    }catch(e){ cs=stage.captureStream(recFps); }
     var ms=new MediaStream();
     cs.getVideoTracks().forEach(function(t){ ms.addTrack(t); });
+    mixVideoTrack = manual ? cs.getVideoTracks()[0] : null;
+    lastCap = 0;
     ensureSilentAudio();  // guarantee an audio track exists; YouTube rejects video-only streams
     var at = au.mixDest && au.mixDest.stream.getAudioTracks()[0];
     if(at) ms.addTrack(at);
@@ -1178,7 +1192,7 @@
     mixRef=Math.max(0,mixRef-1);
     if(mixRef===0 && mix){
       try{ mix.canvasStream.getTracks().forEach(function(t){ t.stop(); }); }catch(e){}
-      mix=null;
+      mix=null; mixVideoTrack=null;
     }
   }
 
