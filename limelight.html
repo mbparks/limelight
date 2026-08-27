@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- LIMELIGHT :: limelight.html :: v0.10.0 -->
+<!-- LIMELIGHT :: limelight.html :: v0.10.2 -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -290,7 +290,7 @@
       <h1>LIMELIGHT</h1>
       <span class="fi-tag">FI-100</span>
     </div>
-    <span class="ver" id="verTag">v0.10.0</span>
+    <span class="ver" id="verTag">v0.10.2</span>
     <div class="spacer"></div>
     <button class="linkbtn" id="btnExport">EXPORT</button>
     <button class="linkbtn" id="btnImport">IMPORT</button>
@@ -461,7 +461,7 @@
 
 <!-- About dialog -->
 <dialog id="aboutDlg">
-  <div class="dhead"><h3>LIMELIGHT</h3><span class="ver">FI-100 &middot; v0.10.0</span><div class="spacer"></div><button class="linkbtn" id="aboutClose">CLOSE</button></div>
+  <div class="dhead"><h3>LIMELIGHT</h3><span class="ver">FI-100 &middot; v0.10.2</span><div class="spacer"></div><button class="linkbtn" id="aboutClose">CLOSE</button></div>
   <div class="dbody">
     <p><b>LIMELIGHT</b> is a from-disk screen recorder. It composites a screen share, camera overlays, image overlays, and freehand annotation into a single video, mixes in the microphone and system audio you choose, and writes a <code>.webm</code> you download. Limelight was the intense stage light that lit a performer for the whole house, so the name fits a tool for putting your screen in front of the world.</p>
     <p>Everything runs locally in the browser. No frames, audio, or recordings are uploaded anywhere. Files stay on this machine until you download and move them.</p>
@@ -471,7 +471,7 @@
     <p><label class="chk"><input type="checkbox" id="dbgToggle"> Debug logging to console</label></p>
     <p><b>Streaming to YouTube and Twitch</b> runs through <b>SEMAPHORE</b>, a small companion relay (<code>semaphore.py</code>) you run on the same machine. Those platforms ingest over RTMP, which a page at <code>file://</code> cannot speak, so the relay does the RTMP push with ffmpeg. LIMELIGHT sends the composited feed to the relay over <code>ws://localhost</code>. Your stream keys live only in the relay's local config, never in this page, so nothing secret is stored in the file. Recording still works with no relay and no network at all.</p>
     <p><b>Scene export/import</b> (top bar) saves every annotation (shapes, stickers, text), your image overlays (embedded in the file), and your tool settings to one JSON file you can carry to another computer. Live cameras are not saved, since they are hardware on this machine.</p>
-    <p class="hint">Known limitations in v0.10.0: Chromium-based browsers recommended (screen and camera capture from <code>file://</code> rely on the secure-context treatment Chromium gives local files). Output is WebM (Safari support is limited). Streaming needs SEMAPHORE plus ffmpeg installed; the relay transcodes to H.264/AAC, which adds a few seconds of latency. Single monitor/window per session. No PWA layer yet. Recordings are held in memory, so a very long take uses a lot of RAM.</p>
+    <p class="hint">Known limitations in v0.10.2: Chromium-based browsers recommended (screen and camera capture from <code>file://</code> rely on the secure-context treatment Chromium gives local files). Output is WebM (Safari support is limited). Streaming needs SEMAPHORE plus ffmpeg installed; the relay transcodes to H.264/AAC, which adds a few seconds of latency. Single monitor/window per session. No PWA layer yet. Recordings are held in memory, so a very long take uses a lot of RAM.</p>
   </div>
 </dialog>
 
@@ -488,7 +488,7 @@
 "use strict";
 (function(){
   // ---- version ----
-  var VERSION = "0.10.0";
+  var VERSION = "0.10.2";
 
   // ---- debug logging behind an in-app toggle ----
   var DEBUG = false;
@@ -517,7 +517,8 @@
   var lineW = 5;
   var rafId = null;
   var recorder = null, chunks = [], recording = false, paused = false;
-  var recStart = 0, recElapsed = 0, timerId = null;
+  var recStart = 0, recAccum = 0;   // recording-only elapsed (for take duration)
+  var clockStart = 0, clockAccum = 0, clockRAF = null;  // visible session clock (recording OR streaming)
   var recFps = 30;
   var recMime = "";
   var takeSeq = 0;
@@ -1141,10 +1142,9 @@
     var cs=stage.captureStream(recFps);
     var ms=new MediaStream();
     cs.getVideoTracks().forEach(function(t){ ms.addTrack(t); });
-    if(hasAudio() && au.mixDest){
-      var at=au.mixDest.stream.getAudioTracks()[0];
-      if(at) ms.addTrack(at);
-    }
+    ensureSilentAudio();  // guarantee an audio track exists; YouTube rejects video-only streams
+    var at = au.mixDest && au.mixDest.stream.getAudioTracks()[0];
+    if(at) ms.addTrack(at);
     mix={ stream:ms, canvasStream:cs };
     return mix;
   }
@@ -1182,6 +1182,15 @@
   }
   function ensureMixDest(){ ensureCtx(); if(au.ctx && !au.mixDest){ au.mixDest=au.ctx.createMediaStreamDestination(); } return au.mixDest; }
   function hasAudio(){ return !!(au.micStream || au.sysSrc); }
+  // A zero-gain oscillator keeps a real (silent) audio track flowing into the mix
+  // even with no mic or system audio, so YouTube (which requires audio) accepts the stream.
+  function ensureSilentAudio(){
+    ensureMixDest();
+    if(au.ctx && au.mixDest && !au.silent){
+      try{ var o=au.ctx.createOscillator(), g=au.ctx.createGain(); g.gain.value=0; o.connect(g); g.connect(au.mixDest); o.start(); au.silent={osc:o,gain:g}; }
+      catch(e){ log("silent audio keep-alive failed",e); }
+    }
+  }
 
   async function startMic(deviceId){
     if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){ alert("No microphone access (getUserMedia) in this browser."); return; }
@@ -1297,24 +1306,25 @@
     recorder.ondataavailable=function(e){ if(e.data && e.data.size>0) chunks.push(e.data); };
     recorder.onstop=function(){ finalizeTake(); };
     recorder.start(1000);
-    recording=true; paused=false; recElapsed=0; recStart=performance.now();
-    setTransport(); startTimer();
+    recording=true; paused=false; recAccum=0; recStart=performance.now();
+    setTransport(); refreshClock();
     log("recording started", recMime);
   });
 
   $("btnPause").addEventListener("click", function(){
     if(!recording||!recorder) return;
-    if(!paused){ recorder.pause(); paused=true; recElapsed+=performance.now()-recStart; stopTimer(); }
-    else { recorder.resume(); paused=false; recStart=performance.now(); startTimer(); }
-    setTransport();
+    if(!paused){ recorder.pause(); paused=true; recAccum+=performance.now()-recStart; }
+    else { recorder.resume(); paused=false; recStart=performance.now(); }
+    setTransport(); refreshClock();
   });
 
   $("btnStop").addEventListener("click", stopRecording);
   function stopRecording(){
     if(!recording||!recorder) return;
+    if(!paused) recAccum += performance.now()-recStart;
     try{ recorder.stop(); }catch(e){}
-    recording=false; paused=false; stopTimer();
-    setTransport();
+    recording=false; paused=false;
+    setTransport(); refreshClock();
   }
 
   function finalizeTake(){
@@ -1322,9 +1332,8 @@
     var blob=new Blob(chunks, {type:type});
     releaseMix();
     var url=URL.createObjectURL(blob);
-    addTake(url, blob.size, type, recElapsed);
+    addTake(url, blob.size, type, recAccum);
     chunks=[]; recorder=null;
-    setTimecode(0);
   }
 
   // =========================================================
@@ -1340,9 +1349,21 @@
     tally.className="tally"+(recording? (paused?" paused":" live"):"");
     tt.textContent = recording? (paused?"PAUSED":"REC"):"STANDBY";
   }
-  function startTimer(){ stopTimer(); timerId=requestAnimationFrame(tick); }
-  function stopTimer(){ if(timerId){ cancelAnimationFrame(timerId); timerId=null; } }
-  function tick(){ var ms=recElapsed + (paused?0:(performance.now()-recStart)); setTimecode(ms); timerId=requestAnimationFrame(tick); }
+  // The visible timecode runs whenever a session is active (recording or
+  // streaming), and freezes only when recording is paused with no stream live.
+  function clockRunning(){ return streaming || (recording && !paused); }
+  function refreshClock(){
+    var run=clockRunning();
+    if(run && !clockStart){ clockStart=performance.now(); }
+    else if(!run && clockStart){ clockAccum += performance.now()-clockStart; clockStart=0; }
+    if(!recording && !streaming){ clockAccum=0; clockStart=0; setTimecode(0); }
+    if((recording||streaming) && !clockRAF){ clockTick(); }
+    else if(!recording && !streaming && clockRAF){ cancelAnimationFrame(clockRAF); clockRAF=null; }
+  }
+  function clockTick(){
+    setTimecode(clockAccum + (clockStart? performance.now()-clockStart : 0));
+    clockRAF = (recording||streaming)? requestAnimationFrame(clockTick) : null;
+  }
   function setTimecode(ms){
     var t=Math.max(0,ms)/1000;
     var hh=Math.floor(t/3600), mm=Math.floor(t%3600/60), ss=Math.floor(t%60);
@@ -1473,7 +1494,7 @@
     // Send Blob chunks directly so ordering is preserved (send is synchronous).
     streamRec.ondataavailable=function(e){ if(e.data && e.data.size>0 && ws && ws.readyState===1) ws.send(e.data); };
     streamRec.start(300);
-    streaming=true; setGoLiveUI(); setOnAir(true); setLive("Starting relay...");
+    streaming=true; setGoLiveUI(); setOnAir(true); setLive("Starting relay..."); refreshClock();
     log("go live", enable, streamRec.mimeType);
   }
   function endLive(fromClose){
@@ -1483,7 +1504,7 @@
     streamRec=null;
     if(!fromClose && ws && ws.readyState===1) ws.send(JSON.stringify({ type:"stop" }));
     releaseMix();
-    setGoLiveUI(); setOnAir(false);
+    setGoLiveUI(); setOnAir(false); refreshClock();
     if(!fromClose) setLive("Ended.");
   }
 
