@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- LIMELIGHT :: limelight.html :: v0.10.2 -->
+<!-- LIMELIGHT :: limelight.html :: v0.10.3 -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -290,7 +290,7 @@
       <h1>LIMELIGHT</h1>
       <span class="fi-tag">FI-100</span>
     </div>
-    <span class="ver" id="verTag">v0.10.2</span>
+    <span class="ver" id="verTag">v0.10.3</span>
     <div class="spacer"></div>
     <button class="linkbtn" id="btnExport">EXPORT</button>
     <button class="linkbtn" id="btnImport">IMPORT</button>
@@ -461,7 +461,7 @@
 
 <!-- About dialog -->
 <dialog id="aboutDlg">
-  <div class="dhead"><h3>LIMELIGHT</h3><span class="ver">FI-100 &middot; v0.10.2</span><div class="spacer"></div><button class="linkbtn" id="aboutClose">CLOSE</button></div>
+  <div class="dhead"><h3>LIMELIGHT</h3><span class="ver">FI-100 &middot; v0.10.3</span><div class="spacer"></div><button class="linkbtn" id="aboutClose">CLOSE</button></div>
   <div class="dbody">
     <p><b>LIMELIGHT</b> is a from-disk screen recorder. It composites a screen share, camera overlays, image overlays, and freehand annotation into a single video, mixes in the microphone and system audio you choose, and writes a <code>.webm</code> you download. Limelight was the intense stage light that lit a performer for the whole house, so the name fits a tool for putting your screen in front of the world.</p>
     <p>Everything runs locally in the browser. No frames, audio, or recordings are uploaded anywhere. Files stay on this machine until you download and move them.</p>
@@ -471,7 +471,7 @@
     <p><label class="chk"><input type="checkbox" id="dbgToggle"> Debug logging to console</label></p>
     <p><b>Streaming to YouTube and Twitch</b> runs through <b>SEMAPHORE</b>, a small companion relay (<code>semaphore.py</code>) you run on the same machine. Those platforms ingest over RTMP, which a page at <code>file://</code> cannot speak, so the relay does the RTMP push with ffmpeg. LIMELIGHT sends the composited feed to the relay over <code>ws://localhost</code>. Your stream keys live only in the relay's local config, never in this page, so nothing secret is stored in the file. Recording still works with no relay and no network at all.</p>
     <p><b>Scene export/import</b> (top bar) saves every annotation (shapes, stickers, text), your image overlays (embedded in the file), and your tool settings to one JSON file you can carry to another computer. Live cameras are not saved, since they are hardware on this machine.</p>
-    <p class="hint">Known limitations in v0.10.2: Chromium-based browsers recommended (screen and camera capture from <code>file://</code> rely on the secure-context treatment Chromium gives local files). Output is WebM (Safari support is limited). Streaming needs SEMAPHORE plus ffmpeg installed; the relay transcodes to H.264/AAC, which adds a few seconds of latency. Single monitor/window per session. No PWA layer yet. Recordings are held in memory, so a very long take uses a lot of RAM.</p>
+    <p class="hint">Known limitations in v0.10.3: Chromium-based browsers recommended (screen and camera capture from <code>file://</code> rely on the secure-context treatment Chromium gives local files). Output is WebM (Safari support is limited). Streaming needs SEMAPHORE plus ffmpeg installed; the relay transcodes to H.264/AAC, which adds a few seconds of latency. Single monitor/window per session. No PWA layer yet. Recordings are held in memory, so a very long take uses a lot of RAM.</p>
   </div>
 </dialog>
 
@@ -488,7 +488,7 @@
 "use strict";
 (function(){
   // ---- version ----
-  var VERSION = "0.10.2";
+  var VERSION = "0.10.3";
 
   // ---- debug logging behind an in-app toggle ----
   var DEBUG = false;
@@ -544,7 +544,7 @@
   // =========================================================
   function anySource(){ return !!screenVideo || overlays.length>0; }
 
-  function loop(){
+  function renderOnce(){
     var W = stage.width, H = stage.height;
     ctx.fillStyle = "#05070a";
     ctx.fillRect(0,0,W,H);
@@ -575,8 +575,32 @@
     if(current) drawStroke(current);
     if(tool==="move" && chromeVisible()) drawSelectionChrome();
     drawLaser();
-    rafId = requestAnimationFrame(loop);
   }
+  function loop(){ renderOnce(); rafId = requestAnimationFrame(loop); }
+
+  // ---- background keep-alive -------------------------------------------------
+  // Browsers throttle animation + canvas capture when the LIMELIGHT window is
+  // hidden, which starves the relay and makes YouTube drop the stream. While a
+  // session is live we (a) play a near-silent looping sound so the tab stays
+  // "audible" and is not hard-throttled, and (b) fall back to a setInterval
+  // render when the page is hidden so frames keep flowing.
+  var bgTimer=null, keepAudio=null;
+  var SILENT_WAV="data:audio/wav;base64,UklGRsQPAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YaAPAAAAAAAAAQACAAMAAwAEAAUABQAGAAcACAAIAAkACgAKAAsADAAMAA0ADgAOAA8ADwAQABAAEQASABIAEgATABMAFAAUABUAFQAVABYAFgAWABYAFwAXABcAFwAXABcAFwAXABcAGAAXABcAFwAXABcAFwAXABcAFwAWABYAFgAWABUAFQAVABQAFAATABMAEgASABIAEQAQABAADwAPAA4ADgANAAwADAALAAoACgAJAAgACAAHAAYABQAFAAQAAwADAAIAAQAAAAAAAAD///7//f/9//z/+//7//r/+f/4//j/9//2//b/9f/0//T/8//y//L/8f/x//D/8P/v/+7/7v/u/+3/7f/s/+z/6//r/+v/6v/q/+r/6v/p/+n/6f/p/+n/6f/p/+n/6f/o/+n/6f/p/+n/6f/p/+n/6f/p/+r/6v/q/+r/6//r/+v/7P/s/+3/7f/u/+7/7v/v//D/8P/x//H/8v/y//P/9P/0//X/9v/2//f/+P/4//n/+v/7//v//P/9//3//v///wAAAAAAAAEAAgADAAMABAAFAAUABgAHAAgACAAJAAoACgALAAwADAANAA4ADgAPAA8AEAAQABEAEgASABIAEwATABQAFAAVABUAFQAWABYAFgAWABcAFwAXABcAFwAXABcAFwAXABgAFwAXABcAFwAXABcAFwAXABcAFgAWABYAFgAVABUAFQAUABQAEwATABIAEgASABEAEAAQAA8ADwAOAA4ADQAMAAwACwAKAAoACQAIAAgABwAGAAUABQAEAAMAAwACAAEAAAAAAAAA///+//3//f/8//v/+//6//n/+P/4//f/9v/2//X/9P/0//P/8v/y//H/8f/w//D/7//u/+7/7v/t/+3/7P/s/+v/6//r/+r/6v/q/+r/6f/p/+n/6f/p/+n/6f/p/+n/6P/p/+n/6f/p/+n/6f/p/+n/6f/q/+r/6v/q/+v/6//r/+z/7P/t/+3/7v/u/+7/7//w//D/8f/x//L/8v/z//T/9P/1//b/9v/3//j/+P/5//r/+//7//z//f/9//7///8AAAAAAAABAAIAAwADAAQABQAFAAYABwAIAAgACQAKAAoACwAMAAwADQAOAA4ADwAPABAAEAARABIAEgASABMAEwAUABQAFQAVABUAFgAWABYAFgAXABcAFwAXABcAFwAXABcAFwAYABcAFwAXABcAFwAXABcAFwAXABYAFgAWABYAFQAVABUAFAAUABMAEwASABIAEgARABAAEAAPAA8ADgAOAA0ADAAMAAsACgAKAAkACAAIAAcABgAFAAUABAADAAMAAgABAAAAAAAAAP///v/9//3//P/7//v/+v/5//j/+P/3//b/9v/1//T/9P/z//L/8v/x//H/8P/w/+//7v/u/+7/7f/t/+z/7P/r/+v/6//q/+r/6v/q/+n/6f/p/+n/6f/p/+n/6f/p/+j/6f/p/+n/6f/p/+n/6f/p/+n/6v/q/+r/6v/r/+v/6//s/+z/7f/t/+7/7v/u/+//8P/w//H/8f/y//L/8//0//T/9f/2//b/9//4//j/+f/6//v/+//8//3//f/+////AAAAAAAAAQACAAMAAwAEAAUABQAGAAcACAAIAAkACgAKAAsADAAMAA0ADgAOAA8ADwAQABAAEQASABIAEgATABMAFAAUABUAFQAVABYAFgAWABYAFwAXABcAFwAXABcAFwAXABcAGAAXABcAFwAXABcAFwAXABcAFwAWABYAFgAWABUAFQAVABQAFAATABMAEgASABIAEQAQABAADwAPAA4ADgANAAwADAALAAoACgAJAAgACAAHAAYABQAFAAQAAwADAAIAAQAAAAAAAAD///7//f/9//z/+//7//r/+f/4//j/9//2//b/9f/0//T/8//y//L/8f/x//D/8P/v/+7/7v/u/+3/7f/s/+z/6//r/+v/6v/q/+r/6v/p/+n/6f/p/+n/6f/p/+n/6f/o/+n/6f/p/+n/6f/p/+n/6f/p/+r/6v/q/+r/6//r/+v/7P/s/+3/7f/u/+7/7v/v//D/8P/x//H/8v/y//P/9P/0//X/9v/2//f/+P/4//n/+v/7//v//P/9//3//v///wAAAAAAAAEAAgADAAMABAAFAAUABgAHAAgACAAJAAoACgALAAwADAANAA4ADgAPAA8AEAAQABEAEgASABIAEwATABQAFAAVABUAFQAWABYAFgAWABcAFwAXABcAFwAXABcAFwAXABgAFwAXABcAFwAXABcAFwAXABcAFgAWABYAFgAVABUAFQAUABQAEwATABIAEgASABEAEAAQAA8ADwAOAA4ADQAMAAwACwAKAAoACQAIAAgABwAGAAUABQAEAAMAAwACAAEAAAAAAAAA///+//3//f/8//v/+//6//n/+P/4//f/9v/2//X/9P/0//P/8v/y//H/8f/w//D/7//u/+7/7v/t/+3/7P/s/+v/6//r/+r/6v/q/+r/6f/p/+n/6f/p/+n/6f/p/+n/6P/p/+n/6f/p/+n/6f/p/+n/6f/q/+r/6v/q/+v/6//r/+z/7P/t/+3/7v/u/+7/7//w//D/8f/x//L/8v/z//T/9P/1//b/9v/3//j/+P/5//r/+//7//z//f/9//7///8AAAAAAAABAAIAAwADAAQABQAFAAYABwAIAAgACQAKAAoACwAMAAwADQAOAA4ADwAPABAAEAARABIAEgASABMAEwAUABQAFQAVABUAFgAWABYAFgAXABcAFwAXABcAFwAXABcAFwAYABcAFwAXABcAFwAXABcAFwAXABYAFgAWABYAFQAVABUAFAAUABMAEwASABIAEgARABAAEAAPAA8ADgAOAA0ADAAMAAsACgAKAAkACAAIAAcABgAFAAUABAADAAMAAgABAAAAAAAAAP///v/9//3//P/7//v/+v/5//j/+P/3//b/9v/1//T/9P/z//L/8v/x//H/8P/w/+//7v/u/+7/7f/t/+z/7P/r/+v/6//q/+r/6v/q/+n/6f/p/+n/6f/p/+n/6f/p/+j/6f/p/+n/6f/p/+n/6f/p/+n/6v/q/+r/6v/r/+v/6//s/+z/7f/t/+7/7v/u/+//8P/w//H/8f/y//L/8//0//T/9f/2//b/9//4//j/+f/6//v/+//8//3//f/+////AAAAAAAAAQACAAMAAwAEAAUABQAGAAcACAAIAAkACgAKAAsADAAMAA0ADgAOAA8ADwAQABAAEQASABIAEgATABMAFAAUABUAFQAVABYAFgAWABYAFwAXABcAFwAXABcAFwAXABcAGAAXABcAFwAXABcAFwAXABcAFwAWABYAFgAWABUAFQAVABQAFAATABMAEgASABIAEQAQABAADwAPAA4ADgANAAwADAALAAoACgAJAAgACAAHAAYABQAFAAQAAwADAAIAAQAAAAAAAAD///7//f/9//z/+//7//r/+f/4//j/9//2//b/9f/0//T/8//y//L/8f/x//D/8P/v/+7/7v/u/+3/7f/s/+z/6//r/+v/6v/q/+r/6v/p/+n/6f/p/+n/6f/p/+n/6f/o/+n/6f/p/+n/6f/p/+n/6f/p/+r/6v/q/+r/6//r/+v/7P/s/+3/7f/u/+7/7v/v//D/8P/x//H/8v/y//P/9P/0//X/9v/2//f/+P/4//n/+v/7//v//P/9//3//v///wAAAAAAAAEAAgADAAMABAAFAAUABgAHAAgACAAJAAoACgALAAwADAANAA4ADgAPAA8AEAAQABEAEgASABIAEwATABQAFAAVABUAFQAWABYAFgAWABcAFwAXABcAFwAXABcAFwAXABgAFwAXABcAFwAXABcAFwAXABcAFgAWABYAFgAVABUAFQAUABQAEwATABIAEgASABEAEAAQAA8ADwAOAA4ADQAMAAwACwAKAAoACQAIAAgABwAGAAUABQAEAAMAAwACAAEAAAAAAAAA///+//3//f/8//v/+//6//n/+P/4//f/9v/2//X/9P/0//P/8v/y//H/8f/w//D/7//u/+7/7v/t/+3/7P/s/+v/6//r/+r/6v/q/+r/6f/p/+n/6f/p/+n/6f/p/+n/6P/p/+n/6f/p/+n/6f/p/+n/6f/q/+r/6v/q/+v/6//r/+z/7P/t/+3/7v/u/+7/7//w//D/8f/x//L/8v/z//T/9P/1//b/9v/3//j/+P/5//r/+//7//z//f/9//7///8AAAAAAAABAAIAAwADAAQABQAFAAYABwAIAAgACQAKAAoACwAMAAwADQAOAA4ADwAPABAAEAARABIAEgASABMAEwAUABQAFQAVABUAFgAWABYAFgAXABcAFwAXABcAFwAXABcAFwAYABcAFwAXABcAFwAXABcAFwAXABYAFgAWABYAFQAVABUAFAAUABMAEwASABIAEgARABAAEAAPAA8ADgAOAA0ADAAMAAsACgAKAAkACAAIAAcABgAFAAUABAADAAMAAgABAAAAAAAAAP///v/9//3//P/7//v/+v/5//j/+P/3//b/9v/1//T/9P/z//L/8v/x//H/8P/w/+//7v/u/+7/7f/t/+z/7P/r/+v/6//q/+r/6v/q/+n/6f/p/+n/6f/p/+n/6f/p/+j/6f/p/+n/6f/p/+n/6f/p/+n/6v/q/+r/6v/r/+v/6//s/+z/7f/t/+7/7v/u/+//8P/w//H/8f/y//L/8//0//T/9f/2//b/9//4//j/+f/6//v/+//8//3//f/+////AAAAAAAAAQACAAMAAwAEAAUABQAGAAcACAAIAAkACgAKAAsADAAMAA0ADgAOAA8ADwAQABAAEQASABIAEgATABMAFAAUABUAFQAVABYAFgAWABYAFwAXABcAFwAXABcAFwAXABcAGAAXABcAFwAXABcAFwAXABcAFwAWABYAFgAWABUAFQAVABQAFAATABMAEgASABIAEQAQABAADwAPAA4ADgANAAwADAALAAoACgAJAAgACAAHAAYABQAFAAQAAwADAAIAAQAAAAAAAAD///7//f/9//z/+//7//r/+f/4//j/9//2//b/9f/0//T/8//y//L/8f/x//D/8P/v/+7/7v/u/+3/7f/s/+z/6//r/+v/6v/q/+r/6v/p/+n/6f/p/+n/6f/p/+n/6f/o/+n/6f/p/+n/6f/p/+n/6f/p/+r/6v/q/+r/6//r/+v/7P/s/+3/7f/u/+7/7v/v//D/8P/x//H/8v/y//P/9P/0//X/9v/2//f/+P/4//n/+v/7//v//P/9//3//v///wAA";
+  function sessionActive(){ return recording || streaming; }
+  function applyRenderMode(){
+    if(document.hidden && sessionActive()){
+      if(!bgTimer){ if(rafId){ cancelAnimationFrame(rafId); rafId=null; } bgTimer=setInterval(renderOnce, 33); }
+    } else {
+      if(bgTimer){ clearInterval(bgTimer); bgTimer=null; }
+      if(!rafId){ loop(); }
+    }
+  }
+  function startKeepAlive(){
+    try{ if(!keepAudio){ keepAudio=new Audio(SILENT_WAV); keepAudio.loop=true; keepAudio.volume=1; } keepAudio.play().catch(function(){}); }catch(e){}
+    applyRenderMode();
+  }
+  function stopKeepAlive(){ try{ if(keepAudio) keepAudio.pause(); }catch(e){} applyRenderMode(); }
+  document.addEventListener("visibilitychange", applyRenderMode);
 
   function drawContain(v,x,y,w,h){
     var vw=v.videoWidth||w, vh=v.videoHeight||h;
@@ -1359,6 +1383,7 @@
     if(!recording && !streaming){ clockAccum=0; clockStart=0; setTimecode(0); }
     if((recording||streaming) && !clockRAF){ clockTick(); }
     else if(!recording && !streaming && clockRAF){ cancelAnimationFrame(clockRAF); clockRAF=null; }
+    if(recording||streaming) startKeepAlive(); else stopKeepAlive();
   }
   function clockTick(){
     setTimecode(clockAccum + (clockStart? performance.now()-clockStart : 0));
